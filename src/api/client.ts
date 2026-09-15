@@ -42,6 +42,30 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface CurrentUser {
+  id: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
+  roles: string[];
+  permissions: string[];
+  permissionAssignments: Array<{ permissionCode: string; scopeType: string | null; scopeId: string | null }>;
+  person: {
+    id: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+    photoUrl: string | null;
+  } | null;
+  guardian: { personId: string; preferredSms: boolean; preferredPush: boolean } | null;
+  staff: {
+    personId: string;
+    staffIdNo: string;
+    department: string | null;
+    employmentStatus: string;
+  } | null;
+}
+
 export async function login(identifier: string, password: string): Promise<AuthTokens> {
   const response = await api.post<AuthTokens>('/auth/login', { identifier, password });
   localStorage.setItem('bci_access_token', response.data.accessToken);
@@ -52,6 +76,11 @@ export async function login(identifier: string, password: string): Promise<AuthT
 export function logoutLocal(): void {
   localStorage.removeItem('bci_access_token');
   localStorage.removeItem('bci_refresh_token');
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const response = await api.get<CurrentUser>('/auth/me');
+  return response.data;
 }
 
 export async function getApplicationStatus(trackingCode: string): Promise<ApplicationStatusView> {
