@@ -95,6 +95,38 @@ export interface CurrentUser {
   } | null;
 }
 
+export interface StaffDuty {
+  id: string;
+  description: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  active: boolean;
+}
+
+export interface TeachingAssignment {
+  id: string;
+  class: { id: string; name: string; level: string; programme: string; academicYearId: string };
+  subject: { id: string; code: string; name: string };
+  term: { id: string; code: string; name: string; startsAt: string; endsAt: string; status: string };
+}
+
+export interface StaffProfile {
+  person: {
+    id: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+    photoUrl: string | null;
+  };
+  staffIdNo: string;
+  department: string | null;
+  employmentStatus: string;
+  duties: StaffDuty[];
+  teaching: TeachingAssignment[];
+}
+
 export async function login(identifier: string, password: string): Promise<AuthTokens> {
   const response = await api.post<AuthTokens>('/auth/login', { identifier, password });
   localStorage.setItem('bci_access_token', response.data.accessToken);
@@ -109,6 +141,11 @@ export function logoutLocal(): void {
 
 export async function getCurrentUser(): Promise<CurrentUser> {
   const response = await api.get<CurrentUser>('/auth/me');
+  return response.data;
+}
+
+export async function getMyStaffProfile(): Promise<StaffProfile> {
+  const response = await api.get<StaffProfile>('/staff/me');
   return response.data;
 }
 
