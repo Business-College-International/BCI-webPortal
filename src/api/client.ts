@@ -167,6 +167,24 @@ export interface AttendanceSession {
   periodLabel: string | null;
 }
 
+export interface AssessmentRosterStudent {
+  id: string;
+  admissionNumber: string | null;
+  firstName: string;
+  lastName: string;
+  status: string;
+}
+
+export interface CreatedAssessment {
+  id: string;
+  title: string;
+  type: string;
+  maxScore: string;
+  weight: string | null;
+  term: { code: string; name: string };
+  subject: { code: string; name: string };
+}
+
 export async function login(identifier: string, password: string): Promise<AuthTokens> {
   const response = await api.post<AuthTokens>('/auth/login', { identifier, password });
   localStorage.setItem('bci_access_token', response.data.accessToken);
@@ -246,5 +264,32 @@ export async function getAttendanceRoster(sessionId: string): Promise<Attendance
 
 export async function markAttendance(sessionId: string, records: AttendanceMark[]): Promise<unknown[]> {
   const response = await api.post<unknown[]>(`/attendance/sessions/${encodeURIComponent(sessionId)}/records`, { records });
+  return response.data;
+}
+
+export async function listAssessmentRoster(classId: string, termId: string, subjectId: string): Promise<AssessmentRosterStudent[]> {
+  const response = await api.get<AssessmentRosterStudent[]>('/assessments/roster', {
+    params: { classId, termId, subjectId },
+  });
+  return response.data;
+}
+
+export async function createAssessment(input: {
+  termId: string;
+  subjectId: string;
+  title: string;
+  type: string;
+  maxScore: number;
+  weight?: number;
+}): Promise<CreatedAssessment> {
+  const response = await api.post<CreatedAssessment>('/assessments', input);
+  return response.data;
+}
+
+export async function enterAssessmentResults(
+  assessmentId: string,
+  input: { results: Array<{ studentId: string; score: number; remark?: string }> },
+): Promise<unknown[]> {
+  const response = await api.post<unknown[]>(`/assessments/${encodeURIComponent(assessmentId)}/results`, input);
   return response.data;
 }
