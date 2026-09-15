@@ -1,23 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CurrentUser, getGuardianProfile, listNotifications, markAllNotificationsRead, markNotificationRead, updateGuardianProfile } from './api/client';
+import { api, CurrentUser } from './api/client';
+
+type GuardianProfile = { firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; address: string | null; occupation: string | null; hometown: string | null; region: string | null; preferredSms: boolean; preferredPush: boolean };
+type Notification = { id: string; channel: string; provider: string | null; status: string; createdAt: string; sentAt: string | null; deliveredAt: string | null; announcement: { id: string; title: string; body: string; audienceType: string; publishedAt: string | null } | null };
+
+async function getGuardianProfile(): Promise<GuardianProfile> { const response = await api.get<GuardianProfile>('/guardians/me/profile'); return response.data; }
+async function updateGuardianProfile(input: { firstName: string; lastName: string; address?: string; occupation?: string; hometown?: string; region?: string; preferredSms: boolean; preferredPush: boolean }): Promise<GuardianProfile> { const response = await api.patch<GuardianProfile>('/guardians/me/profile', input); return response.data; }
+async function listNotifications(): Promise<Notification[]> { const response = await api.get<Notification[]>('/notifications/me'); return response.data; }
+async function markNotificationRead(id: string): Promise<void> { await api.patch(`/notifications/${encodeURIComponent(id)}/read`); }
+async function markAllNotificationsRead(): Promise<{ updatedCount: number }> { const response = await api.post<{ updatedCount: number }>('/notifications/me/read-all'); return response.data; }
 
 export function GuardianWorkspace({ currentUser, onLogout }: { currentUser: CurrentUser; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const profile = useQuery({ queryKey: ['guardian-profile'], queryFn: getGuardianProfile });
-  const notifications = useQuery({ queryKey: ['guardian-notifications'], queryFn: () => listNotifications() });
-  const save = useMutation({
-    mutationFn: updateGuardianProfile,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-profile'] }),
-  });
-  const readAll = useMutation({
-    mutationFn: markAllNotificationsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-notifications'] }),
-  });
-  const markRead = useMutation({
-    mutationFn: markNotificationRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-notifications'] }),
-  });
+  const profile = useQuery({ queryKey: ['guardian-profile'], queryFn: getGuardianProfile, enabled: currentUser.roles.includes('GUARDIAN') });
+  const notifications = useQuery({ queryKey: ['guardian-notifications'], queryFn: listNotifications, enabled: currentUser.roles.includes('GUARDIAN') });
+  const save = useMutation({ mutationFn: updateGuardianProfile, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-profile'] }) });
+  const readAll = useMutation({ mutationFn: markAllNotificationsRead, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-notifications'] }) });
+  const markRead = useMutation({ mutationFn: markNotificationRead, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardian-notifications'] }) });
 
+  if (!currentUser.roles.includes('GUARDIAN')) return null;
   if (profile.isLoading) return <main className="shell narrow"><section className="card"><p>Loading your guardian profile…</p></section></main>;
   if (profile.isError || !profile.data) return <main className="shell narrow"><section className="card"><p role="alert">Guardian profile could not be loaded.</p></section></main>;
 
@@ -28,19 +29,9 @@ export function GuardianWorkspace({ currentUser, onLogout }: { currentUser: Curr
         <div><p className="eyebrow">Business College International</p><h1>Guardian portal</h1><p className="muted">{initial.firstName} {initial.lastName} · Manage your school contact and notification preferences.</p></div>
         <button className="secondary" onClick={onLogout}>Sign out</button>
       </header>
-
       <section className="card">
         <h2>My profile</h2>
-        <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); save.mutate({
-          firstName: String(form.get('firstName') ?? '').trim(),
-          lastName: String(form.get('lastName') ?? '').trim(),
-          address: String(form.get('address') ?? '').trim() || undefined,
-          occupation: String(form.get('occupation') ?? '').trim() || undefined,
-          hometown: String(form.get('hometown') ?? '').trim() || undefined,
-          region: String(form.get('region') ?? '').trim() || undefined,
-          preferredSms: form.get('preferredSms') === 'on',
-          preferredPush: form.get('preferredPush') === 'on',
-        }); }}>
+        <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); save.mutate({ firstName: String(form.get('firstName') ?? '').trim(), lastName: String(form.get('lastName') ?? '').trim(), address: String(form.get('address') ?? '').trim() || undefined, occupation: String(form.get('occupation') ?? '').trim() || undefined, hometown: String(form.get('hometown') ?? '').trim() || undefined, region: String(form.get('region') ?? '').trim() || undefined, preferredSms: form.get('preferredSms') === 'on', preferredPush: form.get('preferredPush') === 'on' }); }}>
           <div className="detail-grid">
             <label>First name<input name="firstName" defaultValue={initial.firstName} required /></label>
             <label>Last name<input name="lastName" defaultValue={initial.lastName} required /></label>
@@ -60,17 +51,11 @@ export function GuardianWorkspace({ currentUser, onLogout }: { currentUser: Curr
           {save.isSuccess && <p>Profile updated successfully.</p>}
         </form>
       </section>
-
       <section className="card">
         <div className="section-heading"><div><h2>Notifications</h2><p className="muted">School notifications delivered to your account.</p></div><button className="secondary" disabled={readAll.isPending} onClick={() => readAll.mutate()}>{readAll.isPending ? 'Updating…' : 'Mark all read'}</button></div>
         {notifications.isFetching && <p>Refreshing notifications…</p>}
         {notifications.data?.length === 0 && <p>No notifications yet.</p>}
-        {notifications.data?.map((item) => (
-          <article key={item.id} className={`card nested-card ${item.status === 'read' ? '' : 'unread'}`}>
-            <div className="section-heading"><div><strong>{item.announcement?.title ?? 'BCI notification'}</strong><p className="muted">{item.announcement?.body ?? 'Notification delivered through BCI.'}</p></div>{item.status !== 'read' && <button className="secondary" onClick={() => markRead.mutate(item.id)}>Mark read</button>}</div>
-            <small>Channel: {item.channel} · Status: {item.status} · {new Date(item.createdAt).toLocaleString()}</small>
-          </article>
-        ))}
+        {notifications.data?.map((item) => <article key={item.id} className="card nested-card"><div className="section-heading"><div><strong>{item.announcement?.title ?? 'BCI notification'}</strong><p className="muted">{item.announcement?.body ?? 'Notification delivered through BCI.'}</p></div>{item.status !== 'read' && <button className="secondary" onClick={() => markRead.mutate(item.id)}>Mark read</button>}</div><small>Channel: {item.channel} · Status: {item.status} · {new Date(item.createdAt).toLocaleString()}</small></article>)}
       </section>
     </main>
   );
