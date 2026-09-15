@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AnnouncementCenter } from './AnnouncementCenter';
+import { AcademicControlCenter } from './AcademicControlCenter';
 import { ClassRosterWorkspace } from './ClassRosterWorkspace';
 import { ConfigurationWorkspace } from './ConfigurationWorkspace';
 import { NotificationCenter } from './NotificationCenter';
@@ -21,6 +22,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
     <>
       <NotificationCenter currentUser={currentUser} />
       <SecurityWorkspace currentUser={currentUser} />
+      <AcademicControlCenter currentUser={currentUser} />
       <section className="card">
         <h2>My staff workspace</h2>
         {profile.isLoading && <p>Loading your staff duties and teaching assignments…</p>}
