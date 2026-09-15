@@ -4,6 +4,7 @@ import { AnnouncementCenter } from './AnnouncementCenter';
 import { AcademicControlCenter } from './AcademicControlCenter';
 import { ClassRosterWorkspace } from './ClassRosterWorkspace';
 import { ConfigurationWorkspace } from './ConfigurationWorkspace';
+import { FinanceReceivablesWorkspace } from './FinanceReceivablesWorkspace';
 import { NotificationCenter } from './NotificationCenter';
 import { SecurityWorkspace } from './SecurityWorkspace';
 import { StudentDirectory } from './StudentDirectory';
@@ -25,6 +26,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <SecurityWorkspace currentUser={currentUser} />
       <AcademicControlCenter currentUser={currentUser} />
       <TeacherAssignmentManagementWorkspace currentUser={currentUser} />
+      <FinanceReceivablesWorkspace currentUser={currentUser} />
       <section className="card">
         <h2>My staff workspace</h2>
         {profile.isLoading && <p>Loading your staff duties and teaching assignments…</p>}
