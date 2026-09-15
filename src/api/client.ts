@@ -37,6 +37,35 @@ export interface ApplicationListItem {
   updatedAt: string;
 }
 
+export interface AcademicTerm {
+  id: string;
+  code: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED';
+}
+
+export interface AcademicYear {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  isCurrent: boolean;
+  terms: AcademicTerm[];
+}
+
+export interface SchoolClass {
+  id: string;
+  academicYearId: string;
+  name: string;
+  level: string;
+  programme: string;
+  division: string | null;
+  room: string | null;
+  capacity: number | null;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -101,5 +130,23 @@ export async function reviewApplication(
   reason?: string,
 ): Promise<{ id: string; trackingCode: string; status: ApplicationStatus; updatedAt: string }> {
   const response = await api.post(`/applications/${encodeURIComponent(id)}/review`, { status, reason });
+  return response.data;
+}
+
+export async function listAcademicYears(): Promise<AcademicYear[]> {
+  const response = await api.get<AcademicYear[]>('/academic-years');
+  return response.data;
+}
+
+export async function listSchoolClasses(academicYearId: string): Promise<SchoolClass[]> {
+  const response = await api.get<SchoolClass[]>('/school-classes', { params: { academicYearId } });
+  return response.data;
+}
+
+export async function admitApplication(
+  id: string,
+  input: { academicYearId: string; termId: string; classId: string; admissionNumber?: string },
+): Promise<{ applicationId: string; student: { id: string; admissionNumber: string | null }; enrolment: { id: string; classId: string; termId: string } }> {
+  const response = await api.post(`/applications/${encodeURIComponent(id)}/admit`, input);
   return response.data;
 }
