@@ -8,17 +8,17 @@ export const api = axios.create({
 
 export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'ADMITTED' | 'REJECTED';
 
-export interface ApplicationSummary {
-  id: string;
-  firstName: string;
-  lastName: string;
+export interface ApplicationStatusView {
+  trackingCode: string;
   levelApplied: string;
   programmeApplied: string;
   status: ApplicationStatus;
   submittedAt: string;
 }
 
-export async function getApplicationStatus(id: string): Promise<ApplicationSummary> {
-  const response = await api.get<ApplicationSummary>(`/applications/${encodeURIComponent(id)}/status`);
+export async function getApplicationStatus(trackingCode: string): Promise<ApplicationStatusView> {
+  const response = await api.get<ApplicationStatusView>(
+    `/applications/track/${encodeURIComponent(trackingCode)}`,
+  );
   return response.data;
 }
