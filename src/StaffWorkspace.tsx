@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AnnouncementCenter } from './AnnouncementCenter';
+import { ClassRosterWorkspace } from './ClassRosterWorkspace';
 import { StudentDirectory } from './StudentDirectory';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
 import { TeacherAttendanceWorkspace } from './TeacherAttendanceWorkspace';
@@ -50,6 +51,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
         )}
       </section>
       <StudentDirectory currentUser={currentUser} />
+      <ClassRosterWorkspace currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
       {canTakeAttendance && profile.data && <TeacherAttendanceWorkspace assignments={profile.data.teaching} />}
       {canEnterAssessments && profile.data && <TeacherAssessmentWorkspace currentUser={currentUser} />}
