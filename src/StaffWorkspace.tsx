@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
+import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
 import { TeacherAttendanceWorkspace } from './TeacherAttendanceWorkspace';
 
 export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
   const enabled = currentUser.permissions.includes('staff.read');
   const canTakeAttendance = currentUser.permissions.includes('attendance.manage');
+  const canEnterAssessments = currentUser.permissions.includes('assessments.manage');
   const profile = useQuery({
     queryKey: ['staff-me'],
     queryFn: getMyStaffProfile,
@@ -78,6 +80,9 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
 
       {canTakeAttendance && profile.data && (
         <TeacherAttendanceWorkspace assignments={profile.data.teaching} />
+      )}
+      {canEnterAssessments && profile.data && (
+        <TeacherAssessmentWorkspace currentUser={currentUser} />
       )}
     </>
   );
