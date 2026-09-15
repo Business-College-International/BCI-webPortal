@@ -13,6 +13,7 @@ api.interceptors.request.use((config) => {
 });
 
 export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'ADMITTED' | 'REJECTED' | 'WITHDRAWN';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
 export interface ApplicationStatusView {
   trackingCode: string;
@@ -127,6 +128,45 @@ export interface StaffProfile {
   teaching: TeachingAssignment[];
 }
 
+export interface AttendanceMark {
+  studentId: string;
+  status: AttendanceStatus;
+  note?: string;
+}
+
+export interface AttendanceRosterItem {
+  student: {
+    id: string;
+    admissionNumber: string | null;
+    firstName: string;
+    lastName: string;
+    passportPhotoUrl: string | null;
+    status: string;
+  };
+  attendance: { status: AttendanceStatus; note: string | null; markedAt: string } | null;
+}
+
+export interface AttendanceRoster {
+  session: {
+    id: string;
+    class: { id: string; name: string };
+    termId: string;
+    subjectId: string | null;
+    sessionDate: string;
+    periodLabel: string | null;
+  };
+  roster: AttendanceRosterItem[];
+}
+
+export interface AttendanceSession {
+  id: string;
+  termId: string;
+  classId: string;
+  subjectId: string | null;
+  sessionDate: string;
+  periodLabel: string | null;
+}
+
 export async function login(identifier: string, password: string): Promise<AuthTokens> {
   const response = await api.post<AuthTokens>('/auth/login', { identifier, password });
   localStorage.setItem('bci_access_token', response.data.accessToken);
@@ -185,5 +225,26 @@ export async function admitApplication(
   input: { academicYearId: string; termId: string; classId: string; admissionNumber?: string },
 ): Promise<{ applicationId: string; student: { id: string; admissionNumber: string | null }; enrolment: { id: string; classId: string; termId: string } }> {
   const response = await api.post(`/applications/${encodeURIComponent(id)}/admit`, input);
+  return response.data;
+}
+
+export async function createAttendanceSession(input: {
+  termId: string;
+  classId: string;
+  subjectId?: string;
+  sessionDate: string;
+  periodLabel?: string;
+}): Promise<AttendanceSession> {
+  const response = await api.post<AttendanceSession>('/attendance/sessions', input);
+  return response.data;
+}
+
+export async function getAttendanceRoster(sessionId: string): Promise<AttendanceRoster> {
+  const response = await api.get<AttendanceRoster>(`/attendance/sessions/${encodeURIComponent(sessionId)}/roster`);
+  return response.data;
+}
+
+export async function markAttendance(sessionId: string, records: AttendanceMark[]): Promise<unknown[]> {
+  const response = await api.post<unknown[]>(`/attendance/sessions/${encodeURIComponent(sessionId)}/records`, { records });
   return response.data;
 }
