@@ -63,8 +63,8 @@ export function StudentProfilePanel({ studentId, currentUser, onClose }: { stude
             <span><strong>Current class</strong>{profile.data.enrolments[0]?.class.name ?? '—'}</span>
           </div>
 
-          <h4>Enrolment history</h4>
-          {profile.data.enrolments.length === 0 ? <p>No enrolment history is available.</p> : (
+          <h4>Current enrolment record</h4>
+          {profile.data.enrolments.length === 0 ? <p>No current enrolment is available.</p> : (
             <div className="table-wrap"><table><thead><tr><th>Year</th><th>Term</th><th>Class</th><th>Programme</th><th>Status</th></tr></thead><tbody>
               {profile.data.enrolments.map((enrolment) => <tr key={enrolment.id}><td>{enrolment.academicYear.name}</td><td>{enrolment.term.name}</td><td>{enrolment.class.name}</td><td>{enrolment.programme}</td><td>{enrolment.status}</td></tr>)}
             </tbody></table></div>
