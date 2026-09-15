@@ -1,13 +1,17 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AcademicYear,
   ApplicationListItem,
   CurrentUser,
   getApplicationStatus,
   getCurrentUser,
+  listAcademicYears,
   listApplications,
+  listSchoolClasses,
   login,
   logoutLocal,
+  admitApplication,
   reviewApplication,
 } from './api/client';
 
@@ -52,6 +56,10 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
   const [submittedTrackingCode, setSubmittedTrackingCode] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
+  const [academicYearId, setAcademicYearId] = useState('');
+  const [termId, setTermId] = useState('');
+  const [classId, setClassId] = useState('');
+  const [admissionNumber, setAdmissionNumber] = useState('');
 
   const applications = useQuery({
     queryKey: ['applications'],
@@ -66,14 +74,57 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
     enabled: submittedTrackingCode.length > 0,
   });
 
+  const academicYears = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: listAcademicYears,
+    enabled: currentUser.permissions.includes('academics.read') && currentUser.permissions.includes('applications.admit'),
+  });
+
+  const schoolClasses = useQuery({
+    queryKey: ['school-classes', academicYearId],
+    queryFn: () => listSchoolClasses(academicYearId),
+    enabled: Boolean(academicYearId) && currentUser.permissions.includes('academics.read'),
+  });
+
   const review = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'UNDER_REVIEW' | 'REJECTED' }) =>
       reviewApplication(id, status, reviewReason || undefined),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['applications'] }),
   });
 
+  const admit = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { academicYearId: string; termId: string; classId: string; admissionNumber?: string } }) =>
+      admitApplication(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      setSelectedId(null);
+      setAcademicYearId('');
+      setTermId('');
+      setClassId('');
+      setAdmissionNumber('');
+    },
+  });
+
   const selectedApplication: ApplicationListItem | undefined = applications.data?.find((item) => item.id === selectedId);
   const canReview = currentUser.permissions.includes('applications.review');
+  const canAdmit = currentUser.permissions.includes('applications.admit') && currentUser.permissions.includes('academics.read');
+
+  const selectedYear: AcademicYear | undefined = academicYears.data?.find((year) => year.id === academicYearId);
+  const openTerms = selectedYear?.terms.filter((term) => term.status === 'OPEN') ?? [];
+  const matchingClasses = schoolClasses.data?.filter((schoolClass) =>
+    selectedApplication &&
+    schoolClass.level === selectedApplication.levelApplied &&
+    schoolClass.programme === selectedApplication.programmeApplied,
+  ) ?? [];
+
+  useEffect(() => {
+    if (!selectedApplication) return;
+    setAcademicYearId('');
+    setTermId('');
+    setClassId('');
+    setAdmissionNumber('');
+    setReviewReason('');
+  }, [selectedApplication?.id]);
 
   return (
     <main className="shell">
@@ -90,7 +141,7 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
 
       <section className="card">
         <h2>Applications</h2>
-        <p className="muted">This list is loaded from the authoritative backend and shown only when your server-side permission includes application read access.</p>
+        <p className="muted">Applications are loaded from the authoritative backend and shown only when your server-side permission includes application read access.</p>
         {!currentUser.permissions.includes('applications.read') && <p>You are authenticated, but your account does not currently have application-read access.</p>}
         {applications.isFetching && <p>Refreshing applications…</p>}
         {applications.isError && <p role="alert">Applications could not be loaded.</p>}
@@ -132,6 +183,7 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
             <span><strong>Programme</strong>{selectedApplication.programmeApplied}</span>
             <span><strong>Status</strong>{selectedApplication.status}</span>
           </div>
+
           {canReview && <>
             <label>
               Review note
@@ -153,7 +205,61 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
               </button>
             </div>
           </>}
-          {!canReview && <p>You can view this application, but your current server permissions do not allow review actions.</p>}
+
+          {canAdmit && (selectedApplication.status === 'UNDER_REVIEW' || selectedApplication.status === 'ADMITTED') && (
+            <div className="card nested-card">
+              <h3>{selectedApplication.status === 'ADMITTED' ? 'Admission placement' : 'Admit and enrol'}</h3>
+              <p className="muted">Choose a valid academic year, open term and matching class. The server performs the final capacity and consistency checks.</p>
+
+              <label>
+                Academic year
+                <select value={academicYearId} onChange={(event) => { setAcademicYearId(event.target.value); setTermId(''); setClassId(''); }} disabled={academicYears.isLoading}>
+                  <option value="">Select academic year</option>
+                  {academicYears.data?.map((year) => <option key={year.id} value={year.id}>{year.name}{year.isCurrent ? ' · current' : ''}</option>)}
+                </select>
+              </label>
+
+              <label>
+                Open term
+                <select value={termId} onChange={(event) => { setTermId(event.target.value); setClassId(''); }} disabled={!academicYearId}>
+                  <option value="">Select open term</option>
+                  {openTerms.map((term) => <option key={term.id} value={term.id}>{term.name} ({term.code})</option>)}
+                </select>
+              </label>
+
+              <label>
+                Matching class
+                <select value={classId} onChange={(event) => setClassId(event.target.value)} disabled={!academicYearId || schoolClasses.isLoading}>
+                  <option value="">Select class</option>
+                  {matchingClasses.map((schoolClass) => (
+                    <option key={schoolClass.id} value={schoolClass.id}>
+                      {schoolClass.name}{schoolClass.division ? ` · ${schoolClass.division}` : ''}{schoolClass.room ? ` · Room ${schoolClass.room}` : ''}
+                      {schoolClass.capacity !== null ? ` · capacity ${schoolClass.capacity}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Admission number (optional)
+                <input value={admissionNumber} onChange={(event) => setAdmissionNumber(event.target.value)} maxLength={50} placeholder="e.g. BCI/SHS/2026/001" />
+              </label>
+
+              <button
+                disabled={selectedApplication.status === 'ADMITTED' || !academicYearId || !termId || !classId || admit.isPending}
+                onClick={() => admit.mutate({
+                  id: selectedApplication.id,
+                  input: { academicYearId, termId, classId, ...(admissionNumber.trim() ? { admissionNumber: admissionNumber.trim() } : {}) },
+                })}
+              >
+                {admit.isPending ? 'Admitting…' : 'Admit and enrol student'}
+              </button>
+              {admit.isError && <p role="alert">Admission could not be completed. The server may have rejected the placement because the term/class changed, the class is full, or the application was already processed.</p>}
+              {admit.isSuccess && <p>Student admission and enrolment were completed successfully.</p>}
+            </div>
+          )}
+
+          {!canReview && !canAdmit && <p>You can view this application, but your current server permissions do not allow review or admission actions.</p>}
           {review.isPending && <p>Saving server-side decision…</p>}
           {review.isError && <p role="alert">The review action failed.</p>}
         </section>
