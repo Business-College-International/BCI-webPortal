@@ -2,7 +2,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ApplicationListItem,
+  CurrentUser,
   getApplicationStatus,
+  getCurrentUser,
   listApplications,
   login,
   logoutLocal,
@@ -44,7 +46,7 @@ function StaffLogin({ onLoggedIn }: { onLoggedIn: () => void }) {
   );
 }
 
-function Admissions({ onLogout }: { onLogout: () => void }) {
+function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLogout: () => void }) {
   const queryClient = useQueryClient();
   const [trackingCode, setTrackingCode] = useState('');
   const [submittedTrackingCode, setSubmittedTrackingCode] = useState('');
@@ -55,6 +57,7 @@ function Admissions({ onLogout }: { onLogout: () => void }) {
     queryKey: ['applications'],
     queryFn: listApplications,
     refetchInterval: 30_000,
+    enabled: currentUser.permissions.includes('applications.read'),
   });
 
   const publicStatus = useQuery({
@@ -70,6 +73,7 @@ function Admissions({ onLogout }: { onLogout: () => void }) {
   });
 
   const selectedApplication: ApplicationListItem | undefined = applications.data?.find((item) => item.id === selectedId);
+  const canReview = currentUser.permissions.includes('applications.review');
 
   return (
     <main className="shell">
@@ -77,13 +81,17 @@ function Admissions({ onLogout }: { onLogout: () => void }) {
         <div>
           <p className="eyebrow">Business College International</p>
           <h1>Admissions workspace</h1>
+          <p className="muted">
+            {currentUser.person ? `${currentUser.person.firstName} ${currentUser.person.lastName}` : 'Authenticated staff'} · {currentUser.roles.join(', ')}
+          </p>
         </div>
         <button className="secondary" onClick={() => { logoutLocal(); onLogout(); }}>Sign out</button>
       </header>
 
       <section className="card">
         <h2>Applications</h2>
-        <p className="muted">This list is loaded from the authoritative backend and requires staff authorization.</p>
+        <p className="muted">This list is loaded from the authoritative backend and shown only when your server-side permission includes application read access.</p>
+        {!currentUser.permissions.includes('applications.read') && <p>You are authenticated, but your account does not currently have application-read access.</p>}
         {applications.isFetching && <p>Refreshing applications…</p>}
         {applications.isError && <p role="alert">Applications could not be loaded.</p>}
         {applications.data && applications.data.length === 0 && <p>No applications have been submitted.</p>}
@@ -124,25 +132,28 @@ function Admissions({ onLogout }: { onLogout: () => void }) {
             <span><strong>Programme</strong>{selectedApplication.programmeApplied}</span>
             <span><strong>Status</strong>{selectedApplication.status}</span>
           </div>
-          <label>
-            Review note
-            <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="Optional note retained with the decision." />
-          </label>
-          <div className="actions">
-            <button
-              disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
-              onClick={() => review.mutate({ id: selectedApplication.id, status: 'UNDER_REVIEW' })}
-            >
-              Mark under review
-            </button>
-            <button
-              className="danger"
-              disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
-              onClick={() => review.mutate({ id: selectedApplication.id, status: 'REJECTED' })}
-            >
-              Reject
-            </button>
-          </div>
+          {canReview && <>
+            <label>
+              Review note
+              <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="Optional note retained with the decision." />
+            </label>
+            <div className="actions">
+              <button
+                disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
+                onClick={() => review.mutate({ id: selectedApplication.id, status: 'UNDER_REVIEW' })}
+              >
+                Mark under review
+              </button>
+              <button
+                className="danger"
+                disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
+                onClick={() => review.mutate({ id: selectedApplication.id, status: 'REJECTED' })}
+              >
+                Reject
+              </button>
+            </div>
+          </>}
+          {!canReview && <p>You can view this application, but your current server permissions do not allow review actions.</p>}
           {review.isPending && <p>Saving server-side decision…</p>}
           {review.isError && <p role="alert">The review action failed.</p>}
         </section>
@@ -164,11 +175,43 @@ function Admissions({ onLogout }: { onLogout: () => void }) {
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem('bci_access_token')));
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!authenticated) {
+      setCurrentUser(null);
+      setAuthChecked(true);
+      return;
+    }
+
+    setAuthChecked(false);
+    getCurrentUser()
+      .then((user) => {
+        if (!cancelled) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          logoutLocal();
+          setAuthenticated(false);
+          setCurrentUser(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthChecked(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [authenticated]);
+
   useEffect(() => {
     const listener = () => setAuthenticated(Boolean(localStorage.getItem('bci_access_token')));
     window.addEventListener('storage', listener);
     return () => window.removeEventListener('storage', listener);
   }, []);
 
-  return authenticated ? <Admissions onLogout={() => setAuthenticated(false)} /> : <StaffLogin onLoggedIn={() => setAuthenticated(true)} />;
+  if (!authenticated) return <StaffLogin onLoggedIn={() => setAuthenticated(true)} />;
+  if (!authChecked || !currentUser) return <main className="shell narrow"><section className="card"><p>Verifying your BCI session…</p></section></main>;
+  return <Admissions currentUser={currentUser} onLogout={() => { setAuthenticated(false); setCurrentUser(null); }} />;
 }
