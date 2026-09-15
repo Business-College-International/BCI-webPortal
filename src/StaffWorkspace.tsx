@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AnnouncementCenter } from './AnnouncementCenter';
-import { PayrollExpenseWorkspace } from './PayrollExpenseWorkspace';
+import { StudentDirectory } from './StudentDirectory';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
 import { TeacherAttendanceWorkspace } from './TeacherAttendanceWorkspace';
 
@@ -9,8 +9,6 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
   const enabled = currentUser.permissions.includes('staff.read');
   const canTakeAttendance = currentUser.permissions.includes('attendance.manage');
   const canEnterAssessments = currentUser.permissions.includes('assessments.manage');
-  const canSeePayroll = currentUser.permissions.includes('payroll.manage');
-  const canSeeFinance = currentUser.permissions.includes('finance.manage');
   const profile = useQuery({ queryKey: ['staff-me'], queryFn: getMyStaffProfile, enabled });
 
   if (!enabled) return null;
@@ -51,10 +49,10 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
           </>
         )}
       </section>
+      <StudentDirectory currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
       {canTakeAttendance && profile.data && <TeacherAttendanceWorkspace assignments={profile.data.teaching} />}
       {canEnterAssessments && profile.data && <TeacherAssessmentWorkspace currentUser={currentUser} />}
-      {(canSeePayroll || canSeeFinance) && <PayrollExpenseWorkspace currentUser={currentUser} />}
     </>
   );
 }
