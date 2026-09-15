@@ -112,15 +112,7 @@ export interface TeachingAssignment {
 }
 
 export interface StaffProfile {
-  person: {
-    id: string;
-    firstName: string;
-    middleName: string | null;
-    lastName: string;
-    phone: string | null;
-    email: string | null;
-    photoUrl: string | null;
-  };
+  person: { id: string; firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; photoUrl: string | null };
   staffIdNo: string;
   department: string | null;
   employmentStatus: string;
@@ -128,168 +120,33 @@ export interface StaffProfile {
   teaching: TeachingAssignment[];
 }
 
-export interface AttendanceMark {
-  studentId: string;
-  status: AttendanceStatus;
-  note?: string;
-}
+export interface AttendanceMark { studentId: string; status: AttendanceStatus; note?: string; }
+export interface AttendanceRosterItem { student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; passportPhotoUrl: string | null; status: string }; attendance: { status: AttendanceStatus; note: string | null; markedAt: string } | null; }
+export interface AttendanceRoster { session: { id: string; class: { id: string; name: string }; termId: string; subjectId: string | null; sessionDate: string; periodLabel: string | null }; roster: AttendanceRosterItem[]; }
+export interface AttendanceSession { id: string; termId: string; classId: string; subjectId: string | null; sessionDate: string; periodLabel: string | null; }
+export interface AssessmentRosterStudent { id: string; admissionNumber: string | null; firstName: string; lastName: string; status: string; }
+export interface CreatedAssessment { id: string; title: string; type: string; maxScore: string; weight: string | null; term: { code: string; name: string }; subject: { code: string; name: string }; }
+export interface Announcement { id: string; title: string; body: string; audienceType: string; audienceRef: string | null; publishedAt: string | null; createdAt: string; }
+export interface StationeryItem { id: string; sku: string; name: string; price: string | number; stockQty: number; isActive: boolean; }
+export interface StationeryOrder { id: string; orderNumber: string; status: string; totalAmount: string | number; orderedAt: string; lines: Array<{ quantity: number; unitPrice: string | number; lineTotal: string | number; item: { sku: string; name: string } }>; }
 
-export interface AttendanceRosterItem {
-  student: {
-    id: string;
-    admissionNumber: string | null;
-    firstName: string;
-    lastName: string;
-    passportPhotoUrl: string | null;
-    status: string;
-  };
-  attendance: { status: AttendanceStatus; note: string | null; markedAt: string } | null;
-}
-
-export interface AttendanceRoster {
-  session: {
-    id: string;
-    class: { id: string; name: string };
-    termId: string;
-    subjectId: string | null;
-    sessionDate: string;
-    periodLabel: string | null;
-  };
-  roster: AttendanceRosterItem[];
-}
-
-export interface AttendanceSession {
-  id: string;
-  termId: string;
-  classId: string;
-  subjectId: string | null;
-  sessionDate: string;
-  periodLabel: string | null;
-}
-
-export interface AssessmentRosterStudent {
-  id: string;
-  admissionNumber: string | null;
-  firstName: string;
-  lastName: string;
-  status: string;
-}
-
-export interface CreatedAssessment {
-  id: string;
-  title: string;
-  type: string;
-  maxScore: string;
-  weight: string | null;
-  term: { code: string; name: string };
-  subject: { code: string; name: string };
-}
-
-export async function login(identifier: string, password: string): Promise<AuthTokens> {
-  const response = await api.post<AuthTokens>('/auth/login', { identifier, password });
-  localStorage.setItem('bci_access_token', response.data.accessToken);
-  localStorage.setItem('bci_refresh_token', response.data.refreshToken);
-  return response.data;
-}
-
-export function logoutLocal(): void {
-  localStorage.removeItem('bci_access_token');
-  localStorage.removeItem('bci_refresh_token');
-}
-
-export async function getCurrentUser(): Promise<CurrentUser> {
-  const response = await api.get<CurrentUser>('/auth/me');
-  return response.data;
-}
-
-export async function getMyStaffProfile(): Promise<StaffProfile> {
-  const response = await api.get<StaffProfile>('/staff/me');
-  return response.data;
-}
-
-export async function getApplicationStatus(trackingCode: string): Promise<ApplicationStatusView> {
-  const response = await api.get<ApplicationStatusView>(
-    `/applications/track/${encodeURIComponent(trackingCode)}`,
-  );
-  return response.data;
-}
-
-export async function listApplications(): Promise<ApplicationListItem[]> {
-  const response = await api.get<ApplicationListItem[]>('/applications');
-  return response.data;
-}
-
-export async function reviewApplication(
-  id: string,
-  status: 'UNDER_REVIEW' | 'REJECTED',
-  reason?: string,
-): Promise<{ id: string; trackingCode: string; status: ApplicationStatus; updatedAt: string }> {
-  const response = await api.post(`/applications/${encodeURIComponent(id)}/review`, { status, reason });
-  return response.data;
-}
-
-export async function listAcademicYears(): Promise<AcademicYear[]> {
-  const response = await api.get<AcademicYear[]>('/academic-years');
-  return response.data;
-}
-
-export async function listSchoolClasses(academicYearId: string): Promise<SchoolClass[]> {
-  const response = await api.get<SchoolClass[]>('/school-classes', { params: { academicYearId } });
-  return response.data;
-}
-
-export async function admitApplication(
-  id: string,
-  input: { academicYearId: string; termId: string; classId: string; admissionNumber?: string },
-): Promise<{ applicationId: string; student: { id: string; admissionNumber: string | null }; enrolment: { id: string; classId: string; termId: string } }> {
-  const response = await api.post(`/applications/${encodeURIComponent(id)}/admit`, input);
-  return response.data;
-}
-
-export async function createAttendanceSession(input: {
-  termId: string;
-  classId: string;
-  subjectId?: string;
-  sessionDate: string;
-  periodLabel?: string;
-}): Promise<AttendanceSession> {
-  const response = await api.post<AttendanceSession>('/attendance/sessions', input);
-  return response.data;
-}
-
-export async function getAttendanceRoster(sessionId: string): Promise<AttendanceRoster> {
-  const response = await api.get<AttendanceRoster>(`/attendance/sessions/${encodeURIComponent(sessionId)}/roster`);
-  return response.data;
-}
-
-export async function markAttendance(sessionId: string, records: AttendanceMark[]): Promise<unknown[]> {
-  const response = await api.post<unknown[]>(`/attendance/sessions/${encodeURIComponent(sessionId)}/records`, { records });
-  return response.data;
-}
-
-export async function listAssessmentRoster(classId: string, termId: string, subjectId: string): Promise<AssessmentRosterStudent[]> {
-  const response = await api.get<AssessmentRosterStudent[]>('/assessments/roster', {
-    params: { classId, termId, subjectId },
-  });
-  return response.data;
-}
-
-export async function createAssessment(input: {
-  termId: string;
-  subjectId: string;
-  title: string;
-  type: string;
-  maxScore: number;
-  weight?: number;
-}): Promise<CreatedAssessment> {
-  const response = await api.post<CreatedAssessment>('/assessments', input);
-  return response.data;
-}
-
-export async function enterAssessmentResults(
-  assessmentId: string,
-  input: { results: Array<{ studentId: string; score: number; remark?: string }> },
-): Promise<unknown[]> {
-  const response = await api.post<unknown[]>(`/assessments/${encodeURIComponent(assessmentId)}/results`, input);
-  return response.data;
-}
+export async function login(identifier: string, password: string): Promise<AuthTokens> { const response = await api.post<AuthTokens>('/auth/login', { identifier, password }); localStorage.setItem('bci_access_token', response.data.accessToken); localStorage.setItem('bci_refresh_token', response.data.refreshToken); return response.data; }
+export function logoutLocal(): void { localStorage.removeItem('bci_access_token'); localStorage.removeItem('bci_refresh_token'); }
+export async function getCurrentUser(): Promise<CurrentUser> { const response = await api.get<CurrentUser>('/auth/me'); return response.data; }
+export async function getMyStaffProfile(): Promise<StaffProfile> { const response = await api.get<StaffProfile>('/staff/me'); return response.data; }
+export async function getApplicationStatus(trackingCode: string): Promise<ApplicationStatusView> { const response = await api.get<ApplicationStatusView>(`/applications/track/${encodeURIComponent(trackingCode)}`); return response.data; }
+export async function listApplications(): Promise<ApplicationListItem[]> { const response = await api.get<ApplicationListItem[]>('/applications'); return response.data; }
+export async function reviewApplication(id: string, status: 'UNDER_REVIEW' | 'REJECTED', reason?: string): Promise<{ id: string; trackingCode: string; status: ApplicationStatus; updatedAt: string }> { const response = await api.post(`/applications/${encodeURIComponent(id)}/review`, { status, reason }); return response.data; }
+export async function listAcademicYears(): Promise<AcademicYear[]> { const response = await api.get<AcademicYear[]>('/academic-years'); return response.data; }
+export async function listSchoolClasses(academicYearId: string): Promise<SchoolClass[]> { const response = await api.get<SchoolClass[]>('/school-classes', { params: { academicYearId } }); return response.data; }
+export async function admitApplication(id: string, input: { academicYearId: string; termId: string; classId: string; admissionNumber?: string }): Promise<{ applicationId: string; student: { id: string; admissionNumber: string | null }; enrolment: { id: string; classId: string; termId: string } }> { const response = await api.post(`/applications/${encodeURIComponent(id)}/admit`, input); return response.data; }
+export async function createAttendanceSession(input: { termId: string; classId: string; subjectId?: string; sessionDate: string; periodLabel?: string }): Promise<AttendanceSession> { const response = await api.post<AttendanceSession>('/attendance/sessions', input); return response.data; }
+export async function getAttendanceRoster(sessionId: string): Promise<AttendanceRoster> { const response = await api.get<AttendanceRoster>(`/attendance/sessions/${encodeURIComponent(sessionId)}/roster`); return response.data; }
+export async function markAttendance(sessionId: string, records: AttendanceMark[]): Promise<unknown[]> { const response = await api.post<unknown[]>(`/attendance/sessions/${encodeURIComponent(sessionId)}/records`, { records }); return response.data; }
+export async function listAssessmentRoster(classId: string, termId: string, subjectId: string): Promise<AssessmentRosterStudent[]> { const response = await api.get<AssessmentRosterStudent[]>('/assessments/roster', { params: { classId, termId, subjectId } }); return response.data; }
+export async function createAssessment(input: { termId: string; subjectId: string; title: string; type: string; maxScore: number; weight?: number }): Promise<CreatedAssessment> { const response = await api.post<CreatedAssessment>('/assessments', input); return response.data; }
+export async function enterAssessmentResults(assessmentId: string, input: { results: Array<{ studentId: string; score: number; remark?: string }> }): Promise<unknown[]> { const response = await api.post<unknown[]>(`/assessments/${encodeURIComponent(assessmentId)}/results`, input); return response.data; }
+export async function listAnnouncements(): Promise<Announcement[]> { const response = await api.get<Announcement[]>('/announcements'); return response.data; }
+export async function createAnnouncement(input: { title: string; body: string; audienceType: string; audienceRef?: string }): Promise<Announcement> { const response = await api.post<Announcement>('/announcements', input); return response.data; }
+export async function publishAnnouncement(id: string): Promise<Announcement> { const response = await api.post<Announcement>(`/announcements/${encodeURIComponent(id)}/publish`); return response.data; }
+export async function listStationeryCatalog(includeInactive = false): Promise<StationeryItem[]> { const response = await api.get<StationeryItem[]>('/stationery/catalog', { params: { includeInactive } }); return response.data; }
