@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AnnouncementCenter } from './AnnouncementCenter';
 import { ClassRosterWorkspace } from './ClassRosterWorkspace';
+import { ConfigurationWorkspace } from './ConfigurationWorkspace';
 import { NotificationCenter } from './NotificationCenter';
 import { StudentDirectory } from './StudentDirectory';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
@@ -52,6 +53,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
           </>
         )}
       </section>
+      <ConfigurationWorkspace currentUser={currentUser} />
       <StudentDirectory currentUser={currentUser} />
       <ClassRosterWorkspace currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
