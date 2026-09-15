@@ -18,7 +18,7 @@ export interface ApplicationSummary {
   submittedAt: string;
 }
 
-export async function listApplications(): Promise<ApplicationSummary[]> {
-  const response = await api.get<ApplicationSummary[]>('/applications');
+export async function getApplicationStatus(id: string): Promise<ApplicationSummary> {
+  const response = await api.get<ApplicationSummary>(`/applications/${encodeURIComponent(id)}/status`);
   return response.data;
 }
