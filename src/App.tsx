@@ -14,6 +14,7 @@ import {
   admitApplication,
   reviewApplication,
 } from './api/client';
+import { StaffWorkspace } from './StaffWorkspace';
 
 function StaffLogin({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [identifier, setIdentifier] = useState('');
@@ -131,13 +132,15 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
       <header className="topbar">
         <div>
           <p className="eyebrow">Business College International</p>
-          <h1>Admissions workspace</h1>
+          <h1>School operations portal</h1>
           <p className="muted">
             {currentUser.person ? `${currentUser.person.firstName} ${currentUser.person.lastName}` : 'Authenticated staff'} · {currentUser.roles.join(', ')}
           </p>
         </div>
         <button className="secondary" onClick={() => { logoutLocal(); onLogout(); }}>Sign out</button>
       </header>
+
+      <StaffWorkspace currentUser={currentUser} />
 
       <section className="card">
         <h2>Applications</h2>
