@@ -14,6 +14,7 @@ import {
   admitApplication,
   reviewApplication,
 } from './api/client';
+import { FinanceWorkspace } from './FinanceWorkspace';
 import { StaffWorkspace } from './StaffWorkspace';
 
 function StaffLogin({ onLoggedIn }: { onLoggedIn: () => void }) {
@@ -140,6 +141,7 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
         <button className="secondary" onClick={() => { logoutLocal(); onLogout(); }}>Sign out</button>
       </header>
 
+      <FinanceWorkspace currentUser={currentUser} />
       <StaffWorkspace currentUser={currentUser} />
 
       <section className="card">
@@ -193,19 +195,8 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
               <textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="Optional note retained with the decision." />
             </label>
             <div className="actions">
-              <button
-                disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
-                onClick={() => review.mutate({ id: selectedApplication.id, status: 'UNDER_REVIEW' })}
-              >
-                Mark under review
-              </button>
-              <button
-                className="danger"
-                disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'}
-                onClick={() => review.mutate({ id: selectedApplication.id, status: 'REJECTED' })}
-              >
-                Reject
-              </button>
+              <button disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'} onClick={() => review.mutate({ id: selectedApplication.id, status: 'UNDER_REVIEW' })}>Mark under review</button>
+              <button className="danger" disabled={selectedApplication.status !== 'PENDING' && selectedApplication.status !== 'UNDER_REVIEW'} onClick={() => review.mutate({ id: selectedApplication.id, status: 'REJECTED' })}>Reject</button>
             </div>
           </>}
 
@@ -213,50 +204,11 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
             <div className="card nested-card">
               <h3>{selectedApplication.status === 'ADMITTED' ? 'Admission placement' : 'Admit and enrol'}</h3>
               <p className="muted">Choose a valid academic year, open term and matching class. The server performs the final capacity and consistency checks.</p>
-
-              <label>
-                Academic year
-                <select value={academicYearId} onChange={(event) => { setAcademicYearId(event.target.value); setTermId(''); setClassId(''); }} disabled={academicYears.isLoading}>
-                  <option value="">Select academic year</option>
-                  {academicYears.data?.map((year) => <option key={year.id} value={year.id}>{year.name}{year.isCurrent ? ' · current' : ''}</option>)}
-                </select>
-              </label>
-
-              <label>
-                Open term
-                <select value={termId} onChange={(event) => { setTermId(event.target.value); setClassId(''); }} disabled={!academicYearId}>
-                  <option value="">Select open term</option>
-                  {openTerms.map((term) => <option key={term.id} value={term.id}>{term.name} ({term.code})</option>)}
-                </select>
-              </label>
-
-              <label>
-                Matching class
-                <select value={classId} onChange={(event) => setClassId(event.target.value)} disabled={!academicYearId || schoolClasses.isLoading}>
-                  <option value="">Select class</option>
-                  {matchingClasses.map((schoolClass) => (
-                    <option key={schoolClass.id} value={schoolClass.id}>
-                      {schoolClass.name}{schoolClass.division ? ` · ${schoolClass.division}` : ''}{schoolClass.room ? ` · Room ${schoolClass.room}` : ''}
-                      {schoolClass.capacity !== null ? ` · capacity ${schoolClass.capacity}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Admission number (optional)
-                <input value={admissionNumber} onChange={(event) => setAdmissionNumber(event.target.value)} maxLength={50} placeholder="e.g. BCI/SHS/2026/001" />
-              </label>
-
-              <button
-                disabled={selectedApplication.status === 'ADMITTED' || !academicYearId || !termId || !classId || admit.isPending}
-                onClick={() => admit.mutate({
-                  id: selectedApplication.id,
-                  input: { academicYearId, termId, classId, ...(admissionNumber.trim() ? { admissionNumber: admissionNumber.trim() } : {}) },
-                })}
-              >
-                {admit.isPending ? 'Admitting…' : 'Admit and enrol student'}
-              </button>
+              <label>Academic year<select value={academicYearId} onChange={(event) => { setAcademicYearId(event.target.value); setTermId(''); setClassId(''); }} disabled={academicYears.isLoading}><option value="">Select academic year</option>{academicYears.data?.map((year) => <option key={year.id} value={year.id}>{year.name}{year.isCurrent ? ' · current' : ''}</option>)}</select></label>
+              <label>Open term<select value={termId} onChange={(event) => { setTermId(event.target.value); setClassId(''); }} disabled={!academicYearId}><option value="">Select open term</option>{openTerms.map((term) => <option key={term.id} value={term.id}>{term.name} ({term.code})</option>)}</select></label>
+              <label>Matching class<select value={classId} onChange={(event) => setClassId(event.target.value)} disabled={!academicYearId || schoolClasses.isLoading}><option value="">Select class</option>{matchingClasses.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}{schoolClass.division ? ` · ${schoolClass.division}` : ''}{schoolClass.room ? ` · Room ${schoolClass.room}` : ''}{schoolClass.capacity !== null ? ` · capacity ${schoolClass.capacity}` : ''}</option>)}</select></label>
+              <label>Admission number (optional)<input value={admissionNumber} onChange={(event) => setAdmissionNumber(event.target.value)} maxLength={50} placeholder="e.g. BCI/SHS/2026/001" /></label>
+              <button disabled={selectedApplication.status === 'ADMITTED' || !academicYearId || !termId || !classId || admit.isPending} onClick={() => admit.mutate({ id: selectedApplication.id, input: { academicYearId, termId, classId, ...(admissionNumber.trim() ? { admissionNumber: admissionNumber.trim() } : {}) } })}>{admit.isPending ? 'Admitting…' : 'Admit and enrol student'}</button>
               {admit.isError && <p role="alert">Admission could not be completed. The server may have rejected the placement because the term/class changed, the class is full, or the application was already processed.</p>}
               {admit.isSuccess && <p>Student admission and enrolment were completed successfully.</p>}
             </div>
@@ -297,9 +249,7 @@ export default function App() {
 
     setAuthChecked(false);
     getCurrentUser()
-      .then((user) => {
-        if (!cancelled) setCurrentUser(user);
-      })
+      .then((user) => { if (!cancelled) setCurrentUser(user); })
       .catch(() => {
         if (!cancelled) {
           logoutLocal();
@@ -307,9 +257,7 @@ export default function App() {
           setCurrentUser(null);
         }
       })
-      .finally(() => {
-        if (!cancelled) setAuthChecked(true);
-      });
+      .finally(() => { if (!cancelled) setAuthChecked(true); });
 
     return () => { cancelled = true; };
   }, [authenticated]);
