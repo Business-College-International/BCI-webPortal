@@ -15,111 +15,16 @@ api.interceptors.request.use((config) => {
 export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'ADMITTED' | 'REJECTED' | 'WITHDRAWN';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
-export interface ApplicationStatusView {
-  trackingCode: string;
-  levelApplied: string;
-  programmeApplied: string;
-  status: ApplicationStatus;
-  submittedAt: string;
-}
-
-export interface ApplicationListItem {
-  id: string;
-  trackingCode: string;
-  firstName: string;
-  lastName: string;
-  dob: string;
-  levelApplied: string;
-  programmeApplied: string;
-  guardianName: string;
-  guardianPhone: string;
-  status: ApplicationStatus;
-  submittedAt: string;
-  updatedAt: string;
-}
-
-export interface AcademicTerm {
-  id: string;
-  code: string;
-  name: string;
-  startsAt: string;
-  endsAt: string;
-  status: 'DRAFT' | 'OPEN' | 'CLOSED';
-}
-
-export interface AcademicYear {
-  id: string;
-  name: string;
-  startsAt: string;
-  endsAt: string;
-  isCurrent: boolean;
-  terms: AcademicTerm[];
-}
-
-export interface SchoolClass {
-  id: string;
-  academicYearId: string;
-  name: string;
-  level: string;
-  programme: string;
-  division: string | null;
-  room: string | null;
-  capacity: number | null;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface CurrentUser {
-  id: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
-  roles: string[];
-  permissions: string[];
-  permissionAssignments: Array<{ permissionCode: string; scopeType: string | null; scopeId: string | null }>;
-  person: {
-    id: string;
-    firstName: string;
-    middleName: string | null;
-    lastName: string;
-    phone: string | null;
-    email: string | null;
-    photoUrl: string | null;
-  } | null;
-  guardian: { personId: string; preferredSms: boolean; preferredPush: boolean } | null;
-  staff: {
-    personId: string;
-    staffIdNo: string;
-    department: string | null;
-    employmentStatus: string;
-  } | null;
-}
-
-export interface StaffDuty {
-  id: string;
-  description: string;
-  startsAt: string | null;
-  endsAt: string | null;
-  active: boolean;
-}
-
-export interface TeachingAssignment {
-  id: string;
-  class: { id: string; name: string; level: string; programme: string; academicYearId: string };
-  subject: { id: string; code: string; name: string };
-  term: { id: string; code: string; name: string; startsAt: string; endsAt: string; status: string };
-}
-
-export interface StaffProfile {
-  person: { id: string; firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; photoUrl: string | null };
-  staffIdNo: string;
-  department: string | null;
-  employmentStatus: string;
-  duties: StaffDuty[];
-  teaching: TeachingAssignment[];
-}
-
+export interface ApplicationStatusView { trackingCode: string; levelApplied: string; programmeApplied: string; status: ApplicationStatus; submittedAt: string; }
+export interface ApplicationListItem { id: string; trackingCode: string; firstName: string; lastName: string; dob: string; levelApplied: string; programmeApplied: string; guardianName: string; guardianPhone: string; status: ApplicationStatus; submittedAt: string; updatedAt: string; }
+export interface AcademicTerm { id: string; code: string; name: string; startsAt: string; endsAt: string; status: 'DRAFT' | 'OPEN' | 'CLOSED'; }
+export interface AcademicYear { id: string; name: string; startsAt: string; endsAt: string; isCurrent: boolean; terms: AcademicTerm[]; }
+export interface SchoolClass { id: string; academicYearId: string; name: string; level: string; programme: string; division: string | null; room: string | null; capacity: number | null; }
+export interface AuthTokens { accessToken: string; refreshToken: string; }
+export interface CurrentUser { id: string; status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; roles: string[]; permissions: string[]; permissionAssignments: Array<{ permissionCode: string; scopeType: string | null; scopeId: string | null }>; person: { id: string; firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; photoUrl: string | null } | null; guardian: { personId: string; preferredSms: boolean; preferredPush: boolean } | null; staff: { personId: string; staffIdNo: string; department: string | null; employmentStatus: string } | null; }
+export interface StaffDuty { id: string; description: string; startsAt: string | null; endsAt: string | null; active: boolean; }
+export interface TeachingAssignment { id: string; class: { id: string; name: string; level: string; programme: string; academicYearId: string }; subject: { id: string; code: string; name: string }; term: { id: string; code: string; name: string; startsAt: string; endsAt: string; status: string }; }
+export interface StaffProfile { person: { id: string; firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; photoUrl: string | null }; staffIdNo: string; department: string | null; employmentStatus: string; duties: StaffDuty[]; teaching: TeachingAssignment[]; }
 export interface AttendanceMark { studentId: string; status: AttendanceStatus; note?: string; }
 export interface AttendanceRosterItem { student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; passportPhotoUrl: string | null; status: string }; attendance: { status: AttendanceStatus; note: string | null; markedAt: string } | null; }
 export interface AttendanceRoster { session: { id: string; class: { id: string; name: string }; termId: string; subjectId: string | null; sessionDate: string; periodLabel: string | null }; roster: AttendanceRosterItem[]; }
@@ -129,6 +34,7 @@ export interface CreatedAssessment { id: string; title: string; type: string; ma
 export interface Announcement { id: string; title: string; body: string; audienceType: string; audienceRef: string | null; publishedAt: string | null; createdAt: string; }
 export interface StationeryItem { id: string; sku: string; name: string; price: string | number; stockQty: number; isActive: boolean; }
 export interface StationeryOrder { id: string; orderNumber: string; status: string; totalAmount: string | number; orderedAt: string; lines: Array<{ quantity: number; unitPrice: string | number; lineTotal: string | number; item: { sku: string; name: string } }>; }
+export interface FinanceSummary { filters: { termId: string | null; from: string | null; to: string | null }; invoices: { count: number; open: number; partiallyPaid: number; paid: number; void: number; invoicedAmount: string; allocatedAmount: string; outstandingAmount: string }; payments: { collectedAmount: string; pendingAmount: string; totalPaymentRecords: number }; }
 
 export async function login(identifier: string, password: string): Promise<AuthTokens> { const response = await api.post<AuthTokens>('/auth/login', { identifier, password }); localStorage.setItem('bci_access_token', response.data.accessToken); localStorage.setItem('bci_refresh_token', response.data.refreshToken); return response.data; }
 export function logoutLocal(): void { localStorage.removeItem('bci_access_token'); localStorage.removeItem('bci_refresh_token'); }
@@ -150,3 +56,4 @@ export async function listAnnouncements(): Promise<Announcement[]> { const respo
 export async function createAnnouncement(input: { title: string; body: string; audienceType: string; audienceRef?: string }): Promise<Announcement> { const response = await api.post<Announcement>('/announcements', input); return response.data; }
 export async function publishAnnouncement(id: string): Promise<Announcement> { const response = await api.post<Announcement>(`/announcements/${encodeURIComponent(id)}/publish`); return response.data; }
 export async function listStationeryCatalog(includeInactive = false): Promise<StationeryItem[]> { const response = await api.get<StationeryItem[]>('/stationery/catalog', { params: { includeInactive } }); return response.data; }
+export async function getFinanceSummary(params?: { termId?: string; from?: string; to?: string }): Promise<FinanceSummary> { const response = await api.get<FinanceSummary>('/finance/summary', { params }); return response.data; }
