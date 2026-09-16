@@ -3,6 +3,7 @@ import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AcademicReportWorkspace } from './AcademicReportWorkspace';
 import { AnnouncementCenter } from './AnnouncementCenter';
 import { AnnouncementOperationsWorkspace } from './AnnouncementOperationsWorkspace';
+import { NotificationOperationsWorkspace } from './NotificationOperationsWorkspace';
 import { AcademicControlCenter } from './AcademicControlCenter';
 import { AdmissionsQueueWorkspace } from './AdmissionsQueueWorkspace';
 import { AttendanceAnalyticsWorkspace } from './AttendanceAnalyticsWorkspace';
@@ -83,6 +84,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <ClassRosterWorkspace currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
       <AnnouncementOperationsWorkspace currentUser={currentUser} />
+      <NotificationOperationsWorkspace currentUser={currentUser} />
       {canTakeAttendance && profile.data && <TeacherAttendanceWorkspace assignments={profile.data.teaching} />}
       {canEnterAssessments && profile.data && <TeacherAssessmentWorkspace currentUser={currentUser} />}
     </>
