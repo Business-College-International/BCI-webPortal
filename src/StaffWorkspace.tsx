@@ -15,6 +15,7 @@ import { FinanceIntegrityWorkspace } from './FinanceIntegrityWorkspace';
 import { FinanceReceivablesWorkspace } from './FinanceReceivablesWorkspace';
 import { NotificationCenter } from './NotificationCenter';
 import { PayrollReadinessWorkspace } from './PayrollReadinessWorkspace';
+import { PermissionReviewWorkspace } from './PermissionReviewWorkspace';
 import { RefundWorkspace } from './RefundWorkspace';
 import { ReportReadinessWorkspace } from './ReportReadinessWorkspace';
 import { SecurityWorkspace } from './SecurityWorkspace';
@@ -39,6 +40,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <AuditCenter currentUser={currentUser} />
       <NotificationCenter currentUser={currentUser} />
       <SecurityWorkspace currentUser={currentUser} />
+      <PermissionReviewWorkspace currentUser={currentUser} />
       <AdmissionsQueueWorkspace currentUser={currentUser} />
       <AcademicControlCenter currentUser={currentUser} />
       <AcademicReportWorkspace currentUser={currentUser} />
