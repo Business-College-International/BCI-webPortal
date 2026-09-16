@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { CurrentUser } from './api/client';
-import { api } from './api/client';
+import { useState } from 'react';
+import { CurrentUser, api } from './api/client';
 
 interface PayrollPeriod { id: string; code: string; startsAt: string; endsAt: string; status: string; }
 interface PayrollReadiness {
@@ -23,7 +23,7 @@ async function getReadiness(periodId: string): Promise<PayrollReadiness> {
 export function PayrollReadinessWorkspace({ currentUser }: { currentUser: CurrentUser }) {
   const enabled = currentUser.permissions.includes('payroll.read');
   const periods = useQuery({ queryKey: ['payroll-periods-readiness'], queryFn: listPayrollPeriods, enabled });
-  const [periodId, setPeriodId] = React.useState('');
+  const [periodId, setPeriodId] = useState('');
   const selectedPeriodId = periodId || periods.data?.[0]?.id || '';
   const readiness = useQuery({ queryKey: ['payroll-readiness', selectedPeriodId], queryFn: () => getReadiness(selectedPeriodId), enabled: enabled && Boolean(selectedPeriodId) });
 
