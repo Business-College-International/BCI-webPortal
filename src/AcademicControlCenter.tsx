@@ -3,6 +3,19 @@ import { useMemo, useState } from 'react';
 import { CurrentUser, AcademicYear, SchoolClass, api } from './api/client';
 
 type Term = AcademicYear['terms'][number];
+type ClosureReadiness = {
+  term: { id: string; code: string; name: string; startsAt: string; endsAt: string; status: string };
+  readiness: {
+    activeEnrolments: number;
+    assessmentCount: number;
+    assessmentResultCount: number;
+    studentsWithMissingAssessmentResults: number;
+    attendanceSessionCount: number;
+    publishedAttendanceSessionCount: number;
+    termEndReached: boolean;
+  };
+  blockers: string[];
+};
 
 async function listYears(): Promise<AcademicYear[]> {
   const response = await api.get<AcademicYear[]>('/academic-years');
@@ -11,6 +24,11 @@ async function listYears(): Promise<AcademicYear[]> {
 
 async function listClasses(yearId: string): Promise<SchoolClass[]> {
   const response = await api.get<SchoolClass[]>('/school-classes', { params: { academicYearId: yearId } });
+  return response.data;
+}
+
+async function getClosureReadiness(termId: string): Promise<ClosureReadiness> {
+  const response = await api.get<ClosureReadiness>(`/terms/${encodeURIComponent(termId)}/closure-readiness`);
   return response.data;
 }
 
@@ -27,22 +45,12 @@ export function AcademicControlCenter({ currentUser }: { currentUser: CurrentUse
 
   const years = useQuery({ queryKey: ['academic-years-admin'], queryFn: listYears, enabled });
   const classes = useQuery({ queryKey: ['academic-classes-admin', yearId], queryFn: () => listClasses(yearId), enabled: enabled && Boolean(yearId) });
-
   const selectedYear = useMemo(() => years.data?.find((year) => year.id === yearId) ?? null, [years.data, yearId]);
   const currentYear = years.data?.find((year) => year.isCurrent) ?? null;
 
-  const currentMutation = useMutation({
-    mutationFn: setCurrentYear,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years-admin'] }),
-  });
-  const termMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'OPEN' | 'CLOSED' }) => transitionTerm(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years-admin'] }),
-  });
-  const classMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: { name?: string; division?: string; room?: string; capacity?: number } }) => updateClass(id, input),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-classes-admin', yearId] }); setEditingClassId(null); },
-  });
+  const currentMutation = useMutation({ mutationFn: setCurrentYear, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years-admin'] }) });
+  const termMutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: 'OPEN' | 'CLOSED' }) => transitionTerm(id, status), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years-admin'] }); queryClient.invalidateQueries({ queryKey: ['term-closure-readiness'] }); } });
+  const classMutation = useMutation({ mutationFn: ({ id, input }: { id: string; input: { name?: string; division?: string; room?: string; capacity?: number } }) => updateClass(id, input), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-classes-admin', yearId] }); setEditingClassId(null); } });
 
   if (!enabled) return null;
 
@@ -69,13 +77,17 @@ export function AcademicControlCenter({ currentUser }: { currentUser: CurrentUse
             <>
               {!selectedYear.isCurrent && <button disabled={currentMutation.isPending} onClick={() => currentMutation.mutate(selectedYear.id)}>{currentMutation.isPending ? 'Making current…' : `Make ${selectedYear.name} current`}</button>}
               <h3>Terms</h3>
-              <div className="table-wrap"><table><thead><tr><th>Term</th><th>Dates</th><th>Status</th><th /></tr></thead><tbody>
-                {selectedYear.terms.map((term: Term) => <tr key={term.id}>
-                  <td>{term.name} · {term.code}</td>
-                  <td>{new Date(term.startsAt).toLocaleDateString()} → {new Date(term.endsAt).toLocaleDateString()}</td>
-                  <td>{term.status}</td>
-                  <td>{term.status === 'DRAFT' && <button onClick={() => termMutation.mutate({ id: term.id, status: 'OPEN' })}>Open</button>}{term.status === 'OPEN' && <button className="danger" onClick={() => termMutation.mutate({ id: term.id, status: 'CLOSED' })}>Close</button>}</td>
-                </tr>)}
+              <div className="table-wrap"><table><thead><tr><th>Term</th><th>Dates</th><th>Status</th><th>Closure readiness</th><th /></tr></thead><tbody>
+                {selectedYear.terms.map((term: Term) => {
+                  const readinessQuery = useQuery({ queryKey: ['term-closure-readiness', term.id], queryFn: () => getClosureReadiness(term.id), enabled: term.status === 'OPEN' && enabled });
+                  return <tr key={term.id}>
+                    <td>{term.name} · {term.code}</td>
+                    <td>{new Date(term.startsAt).toLocaleDateString()} → {new Date(term.endsAt).toLocaleDateString()}</td>
+                    <td>{term.status}</td>
+                    <td>{term.status === 'OPEN' && readinessQuery.data ? (readinessQuery.data.blockers.length === 0 ? 'Ready' : `${readinessQuery.data.blockers.length} blocker(s)`) : term.status === 'OPEN' ? 'Checking…' : '—'}</td>
+                    <td>{term.status === 'DRAFT' && <button onClick={() => termMutation.mutate({ id: term.id, status: 'OPEN' })}>Open</button>}{term.status === 'OPEN' && <button className="danger" onClick={() => termMutation.mutate({ id: term.id, status: 'CLOSED' })}>Close</button>}</td>
+                  </tr>;
+                })}
               </tbody></table></div>
             </>
           )}
