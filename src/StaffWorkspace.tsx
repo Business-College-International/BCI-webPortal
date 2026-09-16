@@ -11,8 +11,8 @@ import { FinanceIntegrityWorkspace } from './FinanceIntegrityWorkspace';
 import { FinanceReceivablesWorkspace } from './FinanceReceivablesWorkspace';
 import { NotificationCenter } from './NotificationCenter';
 import { RefundWorkspace } from './RefundWorkspace';
+import { ReportReadinessWorkspace } from './ReportReadinessWorkspace';
 import { SecurityWorkspace } from './SecurityWorkspace';
-import { StaffManagementWorkspace } from './StaffManagementWorkspace';
 import { StudentDirectory } from './StudentDirectory';
 import { TeacherAssignmentManagementWorkspace } from './TeacherAssignmentManagementWorkspace';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
@@ -33,12 +33,12 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <AdmissionsQueueWorkspace currentUser={currentUser} />
       <AcademicControlCenter currentUser={currentUser} />
       <AcademicReportWorkspace currentUser={currentUser} />
+      <ReportReadinessWorkspace currentUser={currentUser} />
       <TeacherAssignmentManagementWorkspace currentUser={currentUser} />
       <AttendanceAnalyticsWorkspace currentUser={currentUser} />
       <FinanceReceivablesWorkspace currentUser={currentUser} />
       <FinanceIntegrityWorkspace currentUser={currentUser} />
       <RefundWorkspace currentUser={currentUser} />
-      <StaffManagementWorkspace currentUser={currentUser} />
       <section className="card">
         <h2>My staff workspace</h2>
         {profile.isLoading && <p>Loading your staff duties and teaching assignments…</p>}
