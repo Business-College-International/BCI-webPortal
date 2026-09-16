@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
 import { AcademicReportWorkspace } from './AcademicReportWorkspace';
 import { AnnouncementCenter } from './AnnouncementCenter';
+import { AnnouncementOperationsWorkspace } from './AnnouncementOperationsWorkspace';
 import { AcademicControlCenter } from './AcademicControlCenter';
 import { AdmissionsQueueWorkspace } from './AdmissionsQueueWorkspace';
 import { AttendanceAnalyticsWorkspace } from './AttendanceAnalyticsWorkspace';
@@ -81,6 +82,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <StudentDirectory currentUser={currentUser} />
       <ClassRosterWorkspace currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
+      <AnnouncementOperationsWorkspace currentUser={currentUser} />
       {canTakeAttendance && profile.data && <TeacherAttendanceWorkspace assignments={profile.data.teaching} />}
       {canEnterAssessments && profile.data && <TeacherAssessmentWorkspace currentUser={currentUser} />}
     </>
