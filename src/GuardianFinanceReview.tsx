@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, CurrentUser } from './api/client';
 
+type Ward = { id: string; firstName: string; lastName: string; canPayFees: boolean };
 type Invoice = { id: string; invoiceNumber: string; status: string; outstandingAmount: string };
 type PaymentPreflight = {
   requestedAmount: string;
@@ -9,6 +10,16 @@ type PaymentPreflight = {
   pendingPayments: { count: number; amount: string };
   reservation: { available: boolean; requiredBeforeProviderInitiation: boolean; reason: string };
 };
+
+async function listWards(): Promise<Ward[]> {
+  const response = await api.get<Array<{ student: { id: string; firstName: string; lastName: string }; permissions?: { canPayFees?: boolean } }>>('/students/me/wards');
+  return response.data.map((item) => ({
+    id: item.student.id,
+    firstName: item.student.firstName,
+    lastName: item.student.lastName,
+    canPayFees: item.permissions?.canPayFees ?? false,
+  }));
+}
 
 async function listWardInvoices(studentId: string): Promise<Invoice[]> {
   const response = await api.get<Invoice[]>(`/finance/students/${encodeURIComponent(studentId)}/invoices`);
@@ -21,24 +32,34 @@ async function paymentPreflight(studentId: string, invoiceIds: string[]): Promis
 }
 
 export function GuardianFinanceReview({ currentUser }: { currentUser: CurrentUser }) {
-  const [studentId, setStudentId] = useState('');
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [review, setReview] = useState<PaymentPreflight | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ward = currentUser.guardian ? null : null;
+
+  useEffect(() => {
+    if (!currentUser.roles.includes('GUARDIAN')) return;
+    listWards().then(setWards).catch(() => setError('Ward relationships could not be loaded.'));
+  }, [currentUser.roles]);
 
   if (!currentUser.roles.includes('GUARDIAN')) return null;
 
+  const payableWards = wards.filter((ward) => ward.canPayFees);
+  const payableInvoices = invoices.filter((invoice) =>
+    (invoice.status === 'OPEN' || invoice.status === 'PARTIALLY_PAID') && Number(invoice.outstandingAmount) > 0,
+  );
+
   const loadWard = async (id: string) => {
+    setSelectedStudentId(id);
     setBusy(true);
     setError(null);
     setReview(null);
     try {
-      const data = await listWardInvoices(id);
-      setInvoices(data);
-      setStudentId(id);
+      setInvoices(await listWardInvoices(id));
     } catch {
+      setInvoices([]);
       setError('Ward fee information could not be loaded.');
     } finally {
       setBusy(false);
@@ -46,14 +67,11 @@ export function GuardianFinanceReview({ currentUser }: { currentUser: CurrentUse
   };
 
   const reviewPayment = async () => {
-    const payable = invoices.filter((invoice) =>
-      (invoice.status === 'OPEN' || invoice.status === 'PARTIALLY_PAID') && Number(invoice.outstandingAmount) > 0,
-    );
-    if (payable.length === 0) return;
+    if (!selectedStudentId || payableInvoices.length === 0) return;
     setBusy(true);
     setError(null);
     try {
-      setReview(await paymentPreflight(studentId, payable.map((invoice) => invoice.id)));
+      setReview(await paymentPreflight(selectedStudentId, payableInvoices.map((invoice) => invoice.id)));
     } catch {
       setError('The payment review could not be prepared.');
     } finally {
@@ -61,19 +79,24 @@ export function GuardianFinanceReview({ currentUser }: { currentUser: CurrentUse
     }
   };
 
-  const payable = invoices.filter((invoice) =>
-    (invoice.status === 'OPEN' || invoice.status === 'PARTIALLY_PAID') && Number(invoice.outstandingAmount) > 0,
-  );
-
   return (
     <section className="card">
       <h2>Fee payment review</h2>
       <p className="muted">Prepare the allocation before any payment-provider transaction is permitted.</p>
-      <label>Ward student ID<input value={studentId} onChange={(event) => setStudentId(event.target.value.trim())} placeholder="Select or enter the ward student ID" /></label>
-      <div className="section-heading">
-        <button disabled={busy || !studentId} onClick={() => loadWard(studentId)}>{busy ? 'Loading…' : 'Load ward fees'}</button>
-        <button className="secondary" disabled={busy || payable.length === 0} onClick={reviewPayment}>Review payment allocation</button>
-      </div>
+      {payableWards.length === 0 && <p>No ward is currently enabled for fee payment.</p>}
+      {payableWards.length > 0 && (
+        <label>Ward
+          <select value={selectedStudentId} onChange={(event) => loadWard(event.target.value)} disabled={busy}>
+            <option value="">Select a ward</option>
+            {payableWards.map((ward) => <option key={ward.id} value={ward.id}>{ward.firstName} {ward.lastName}</option>)}
+          </select>
+        </label>
+      )}
+      {selectedStudentId && (
+        <button className="secondary" disabled={busy || payableInvoices.length === 0} onClick={reviewPayment}>
+          {busy ? 'Working…' : 'Review payment allocation'}
+        </button>
+      )}
       {error && <p role="alert">{error}</p>}
       {invoices.length > 0 && (
         <div className="table-wrap"><table><thead><tr><th>Invoice</th><th>Status</th><th>Outstanding</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td>{invoice.invoiceNumber}</td><td>{invoice.status}</td><td>GH₵ {invoice.outstandingAmount}</td></tr>)}</tbody></table></div>
