@@ -19,6 +19,7 @@ import { ReportReadinessWorkspace } from './ReportReadinessWorkspace';
 import { SecurityWorkspace } from './SecurityWorkspace';
 import { StationeryOperationsWorkspace } from './StationeryWorkspace';
 import { StudentDirectory } from './StudentDirectory';
+import { StudentRecordCompletenessWorkspace } from './StudentRecordCompletenessWorkspace';
 import { TeacherAssignmentManagementWorkspace } from './TeacherAssignmentManagementWorkspace';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
 import { TeacherAttendanceWorkspace } from './TeacherAttendanceWorkspace';
@@ -83,6 +84,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       </section>
       <ConfigurationWorkspace currentUser={currentUser} />
       <StudentDirectory currentUser={currentUser} />
+      <StudentRecordCompletenessWorkspace currentUser={currentUser} />
       <ClassRosterWorkspace currentUser={currentUser} />
       <AnnouncementCenter currentUser={currentUser} />
       <AnnouncementOperationsWorkspace currentUser={currentUser} />
