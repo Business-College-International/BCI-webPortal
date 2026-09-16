@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, CurrentUser } from './api/client';
+import { GuardianFinanceReview } from './GuardianFinanceReview';
 import { SecurityWorkspace } from './SecurityWorkspace';
 
 type GuardianProfile = { firstName: string; middleName: string | null; lastName: string; phone: string | null; email: string | null; address: string | null; occupation: string | null; hometown: string | null; region: string | null; preferredSms: boolean; preferredPush: boolean };
@@ -35,6 +36,7 @@ export function GuardianWorkspace({ currentUser, onLogout }: { currentUser: Curr
       </header>
 
       <SecurityWorkspace currentUser={currentUser} />
+      <GuardianFinanceReview currentUser={currentUser} />
 
       <section className="card">
         <h2>My wards</h2>
