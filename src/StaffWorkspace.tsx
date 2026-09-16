@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { CurrentUser, getMyStaffProfile } from './api/client';
+import { AcademicReportWorkspace } from './AcademicReportWorkspace';
 import { AnnouncementCenter } from './AnnouncementCenter';
 import { AcademicControlCenter } from './AcademicControlCenter';
 import { AdmissionsQueueWorkspace } from './AdmissionsQueueWorkspace';
@@ -30,6 +31,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <SecurityWorkspace currentUser={currentUser} />
       <AdmissionsQueueWorkspace currentUser={currentUser} />
       <AcademicControlCenter currentUser={currentUser} />
+      <AcademicReportWorkspace currentUser={currentUser} />
       <TeacherAssignmentManagementWorkspace currentUser={currentUser} />
       <AttendanceAnalyticsWorkspace currentUser={currentUser} />
       <FinanceReceivablesWorkspace currentUser={currentUser} />
