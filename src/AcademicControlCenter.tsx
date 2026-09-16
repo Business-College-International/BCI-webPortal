@@ -36,6 +36,36 @@ async function setCurrentYear(id: string) { await api.post(`/academic-years/${en
 async function transitionTerm(id: string, status: 'OPEN' | 'CLOSED') { await api.patch(`/terms/${encodeURIComponent(id)}/status`, { status }); }
 async function updateClass(id: string, input: { name?: string; division?: string; room?: string; capacity?: number }) { const response = await api.patch<SchoolClass>(`/school-classes/${encodeURIComponent(id)}`, input); return response.data; }
 
+function TermRow({ term, onTransition, pending }: { term: Term; onTransition: (id: string, status: 'OPEN' | 'CLOSED') => void; pending: boolean }) {
+  const readiness = useQuery({
+    queryKey: ['term-closure-readiness', term.id],
+    queryFn: () => getClosureReadiness(term.id),
+    enabled: term.status === 'OPEN',
+  });
+  const readinessLabel = term.status !== 'OPEN'
+    ? '—'
+    : readiness.isError
+      ? 'Unavailable'
+      : readiness.isLoading
+        ? 'Checking…'
+        : readiness.data?.blockers.length === 0
+          ? 'Ready'
+          : `${readiness.data?.blockers.length} blocker(s)`;
+
+  return (
+    <tr>
+      <td>{term.name} · {term.code}</td>
+      <td>{new Date(term.startsAt).toLocaleDateString()} → {new Date(term.endsAt).toLocaleDateString()}</td>
+      <td>{term.status}</td>
+      <td>{readinessLabel}</td>
+      <td>
+        {term.status === 'DRAFT' && <button disabled={pending} onClick={() => onTransition(term.id, 'OPEN')}>Open</button>}
+        {term.status === 'OPEN' && <button className="danger" disabled={pending} onClick={() => onTransition(term.id, 'CLOSED')}>Close</button>}
+      </td>
+    </tr>
+  );
+}
+
 export function AcademicControlCenter({ currentUser }: { currentUser: CurrentUser }) {
   const enabled = currentUser.permissions.includes('academics.manage');
   const queryClient = useQueryClient();
@@ -78,16 +108,7 @@ export function AcademicControlCenter({ currentUser }: { currentUser: CurrentUse
               {!selectedYear.isCurrent && <button disabled={currentMutation.isPending} onClick={() => currentMutation.mutate(selectedYear.id)}>{currentMutation.isPending ? 'Making current…' : `Make ${selectedYear.name} current`}</button>}
               <h3>Terms</h3>
               <div className="table-wrap"><table><thead><tr><th>Term</th><th>Dates</th><th>Status</th><th>Closure readiness</th><th /></tr></thead><tbody>
-                {selectedYear.terms.map((term: Term) => {
-                  const readinessQuery = useQuery({ queryKey: ['term-closure-readiness', term.id], queryFn: () => getClosureReadiness(term.id), enabled: term.status === 'OPEN' && enabled });
-                  return <tr key={term.id}>
-                    <td>{term.name} · {term.code}</td>
-                    <td>{new Date(term.startsAt).toLocaleDateString()} → {new Date(term.endsAt).toLocaleDateString()}</td>
-                    <td>{term.status}</td>
-                    <td>{term.status === 'OPEN' && readinessQuery.data ? (readinessQuery.data.blockers.length === 0 ? 'Ready' : `${readinessQuery.data.blockers.length} blocker(s)`) : term.status === 'OPEN' ? 'Checking…' : '—'}</td>
-                    <td>{term.status === 'DRAFT' && <button onClick={() => termMutation.mutate({ id: term.id, status: 'OPEN' })}>Open</button>}{term.status === 'OPEN' && <button className="danger" onClick={() => termMutation.mutate({ id: term.id, status: 'CLOSED' })}>Close</button>}</td>
-                  </tr>;
-                })}
+                {selectedYear.terms.map((term: Term) => <TermRow key={term.id} term={term} onTransition={(id, status) => termMutation.mutate({ id, status })} pending={termMutation.isPending} />)}
               </tbody></table></div>
             </>
           )}
