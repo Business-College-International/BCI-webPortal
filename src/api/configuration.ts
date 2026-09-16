@@ -19,11 +19,16 @@ export async function updateSubject(id: string, input: Partial<{ name: string; l
 }
 
 export async function listFeeSchedules(termId: string): Promise<FeeSchedule[]> {
-  const response = await api.get<FeeSchedule[]>('/configuration/fee-schedules', { params: { termId } });
-  return response.data;
+  const response = await api.get<{ term: unknown; schedules: FeeSchedule[] }>('/configuration/fee-schedules', { params: { termId } });
+  return response.data.schedules;
 }
 
 export async function createFeeSchedule(input: { termId: string; level: string; programme: string; itemCode: string; itemName: string; amount: number; isOptional?: boolean }): Promise<FeeSchedule> {
   const response = await api.post<FeeSchedule>('/configuration/fee-schedules', input);
+  return response.data;
+}
+
+export async function updateFeeSchedule(id: string, input: Partial<{ itemName: string; amount: number; isOptional: boolean; isActive: boolean }>): Promise<FeeSchedule> {
+  const response = await api.patch<FeeSchedule>(`/configuration/fee-schedules/${encodeURIComponent(id)}`, input);
   return response.data;
 }
