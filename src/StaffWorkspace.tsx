@@ -5,6 +5,7 @@ import { AnnouncementCenter } from './AnnouncementCenter';
 import { AcademicControlCenter } from './AcademicControlCenter';
 import { AdmissionsQueueWorkspace } from './AdmissionsQueueWorkspace';
 import { AttendanceAnalyticsWorkspace } from './AttendanceAnalyticsWorkspace';
+import { AuditCenter } from './AuditCenter';
 import { ClassRosterWorkspace } from './ClassRosterWorkspace';
 import { ConfigurationWorkspace } from './ConfigurationWorkspace';
 import { FinanceIntegrityWorkspace } from './FinanceIntegrityWorkspace';
@@ -28,6 +29,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
 
   return (
     <>
+      <AuditCenter currentUser={currentUser} />
       <NotificationCenter currentUser={currentUser} />
       <SecurityWorkspace currentUser={currentUser} />
       <AdmissionsQueueWorkspace currentUser={currentUser} />
