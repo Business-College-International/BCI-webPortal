@@ -14,6 +14,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { RefundWorkspace } from './RefundWorkspace';
 import { ReportReadinessWorkspace } from './ReportReadinessWorkspace';
 import { SecurityWorkspace } from './SecurityWorkspace';
+import { StationeryOperationsWorkspace } from './StationeryWorkspace';
 import { StudentDirectory } from './StudentDirectory';
 import { TeacherAssignmentManagementWorkspace } from './TeacherAssignmentManagementWorkspace';
 import { TeacherAssessmentWorkspace } from './TeacherAssessmentWorkspace';
@@ -41,6 +42,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <FinanceReceivablesWorkspace currentUser={currentUser} />
       <FinanceIntegrityWorkspace currentUser={currentUser} />
       <RefundWorkspace currentUser={currentUser} />
+      <StationeryOperationsWorkspace currentUser={currentUser} />
       <section className="card">
         <h2>My staff workspace</h2>
         {profile.isLoading && <p>Loading your staff duties and teaching assignments…</p>}
