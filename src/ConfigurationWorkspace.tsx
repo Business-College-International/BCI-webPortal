@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { listAcademicYears, CurrentUser } from './api/client';
-import { createFeeSchedule, createSubject, listFeeSchedules, listSubjects, updateSubject } from './api/configuration';
+import { createFeeSchedule, createSubject, listFeeSchedules, listSubjects, updateFeeSchedule, updateSubject } from './api/configuration';
 
 const levels = ['KG1','KG2','P1','P2','P3','P4','P5','P6','JHS1','JHS2','JHS3','SHS1','SHS2','SHS3'];
 const programmes = ['NONE','AGRIC','GENERAL_ARTS','BUSINESS','HOME_ECONOMICS'];
@@ -23,6 +23,10 @@ export function ConfigurationWorkspace({ currentUser }: { currentUser: CurrentUs
   const addSubject = useMutation({ mutationFn: () => createSubject({ ...subjectForm, isElective: subjectForm.isElective }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['configuration-subjects'] }); setSubjectForm({ code: '', name: '', level: 'SHS1', programme: 'NONE', isElective: false }); } });
   const toggleSubject = useMutation({ mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => updateSubject(id, { isActive }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['configuration-subjects'] }) });
   const addFee = useMutation({ mutationFn: () => createFeeSchedule({ termId, level: feeForm.level, programme: feeForm.programme, itemCode: feeForm.itemCode, itemName: feeForm.itemName, amount: Number(feeForm.amount), isOptional: feeForm.isOptional }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fee-schedules', termId] }); setFeeForm({ level: 'SHS1', programme: 'NONE', itemCode: '', itemName: '', amount: '', isOptional: false }); } });
+  const editFee = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { itemName?: string; isOptional?: boolean; isActive?: boolean } }) => updateFeeSchedule(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fee-schedules', termId] }),
+  });
 
   if (!canAcademic && !canFinance) return null;
 
@@ -57,7 +61,8 @@ export function ConfigurationWorkspace({ currentUser }: { currentUser: CurrentUs
         <label><input type="checkbox" checked={feeForm.isOptional} onChange={(e) => setFeeForm({ ...feeForm, isOptional: e.target.checked })} /> Optional charge</label>
         <button disabled={!feeForm.itemCode.trim() || !feeForm.itemName.trim() || feeForm.amount === '' || addFee.isPending} onClick={() => addFee.mutate()}>{addFee.isPending ? 'Adding…' : 'Add fee item'}</button>
         {addFee.isError && <p role="alert">Fee schedule item could not be created.</p>}
-        {fees.data && <div className="table-wrap"><table><thead><tr><th>Code</th><th>Item</th><th>Level</th><th>Programme</th><th>Amount</th><th>Optional</th><th>Status</th></tr></thead><tbody>{fees.data.map((fee) => <tr key={fee.id}><td>{fee.itemCode}</td><td>{fee.itemName}</td><td>{fee.level}</td><td>{fee.programme}</td><td>{fee.amount}</td><td>{fee.isOptional ? 'Yes' : 'No'}</td><td>{fee.isActive ? 'Active' : 'Inactive'}</td></tr>)}</tbody></table></div>}
+        {fees.data && <div className="table-wrap"><table><thead><tr><th>Code</th><th>Item</th><th>Level</th><th>Programme</th><th>Amount</th><th>Optional</th><th>Status</th><th /></tr></thead><tbody>{fees.data.map((fee) => <tr key={fee.id}><td>{fee.itemCode}</td><td>{fee.itemName}</td><td>{fee.level}</td><td>{fee.programme}</td><td>{fee.amount}</td><td>{fee.isOptional ? 'Yes' : 'No'}</td><td>{fee.isActive ? 'Active' : 'Inactive'}</td><td><button className="secondary" disabled={editFee.isPending} onClick={() => { const nextName = window.prompt('Fee item name', fee.itemName); if (nextName !== null && nextName.trim()) editFee.mutate({ id: fee.id, input: { itemName: nextName.trim() } }); }} >Rename</button>{' '}<button className="secondary" disabled={editFee.isPending} onClick={() => editFee.mutate({ id: fee.id, input: { isOptional: !fee.isOptional } })}>{fee.isOptional ? 'Make required' : 'Make optional'}</button>{' '}<button className="secondary" disabled={editFee.isPending} onClick={() => editFee.mutate({ id: fee.id, input: { isActive: !fee.isActive } })}>{fee.isActive ? 'Deactivate' : 'Activate'}</button></td></tr>)}</tbody></table></div>}
+        {editFee.isError && <p role="alert">Fee schedule update was rejected by the server.</p>}
       </>}
     </div>}
   </section>;
