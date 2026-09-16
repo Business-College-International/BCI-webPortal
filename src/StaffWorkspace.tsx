@@ -13,6 +13,7 @@ import { ConfigurationWorkspace } from './ConfigurationWorkspace';
 import { FinanceIntegrityWorkspace } from './FinanceIntegrityWorkspace';
 import { FinanceReceivablesWorkspace } from './FinanceReceivablesWorkspace';
 import { NotificationCenter } from './NotificationCenter';
+import { PayrollReadinessWorkspace } from './PayrollReadinessWorkspace';
 import { RefundWorkspace } from './RefundWorkspace';
 import { ReportReadinessWorkspace } from './ReportReadinessWorkspace';
 import { SecurityWorkspace } from './SecurityWorkspace';
@@ -44,6 +45,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <FinanceReceivablesWorkspace currentUser={currentUser} />
       <FinanceIntegrityWorkspace currentUser={currentUser} />
       <RefundWorkspace currentUser={currentUser} />
+      <PayrollReadinessWorkspace currentUser={currentUser} />
       <StationeryOperationsWorkspace currentUser={currentUser} />
       <section className="card">
         <h2>My staff workspace</h2>
