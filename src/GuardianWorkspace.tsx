@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, CurrentUser } from './api/client';
+import { GuardianFeeStatement } from './GuardianFeeStatement';
 import { GuardianFinanceReview } from './GuardianFinanceReview';
 import { GuardianStationeryWorkspace } from './StationeryWorkspace';
 import { GuardianWalletWorkspace } from './GuardianWalletWorkspace';
@@ -38,6 +39,7 @@ export function GuardianWorkspace({ currentUser, onLogout }: { currentUser: Curr
       </header>
 
       <SecurityWorkspace currentUser={currentUser} />
+      <GuardianFeeStatement currentUser={currentUser} />
       <GuardianFinanceReview currentUser={currentUser} />
       <GuardianWalletWorkspace currentUser={currentUser} />
       <GuardianStationeryWorkspace currentUser={currentUser} wards={wards.data ?? []} />
