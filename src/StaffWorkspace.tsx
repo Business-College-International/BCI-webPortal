@@ -10,6 +10,7 @@ import { AttendanceAnalyticsWorkspace } from './AttendanceAnalyticsWorkspace';
 import { AuditCenter } from './AuditCenter';
 import { ClassRosterWorkspace } from './ClassRosterWorkspace';
 import { ConfigurationWorkspace } from './ConfigurationWorkspace';
+import { FinanceBillingRunWorkspace } from './FinanceBillingRunWorkspace';
 import { FinanceIntegrityWorkspace } from './FinanceIntegrityWorkspace';
 import { FinanceReceivablesWorkspace } from './FinanceReceivablesWorkspace';
 import { NotificationCenter } from './NotificationCenter';
@@ -46,6 +47,7 @@ export function StaffWorkspace({ currentUser }: { currentUser: CurrentUser }) {
       <AttendanceAnalyticsWorkspace currentUser={currentUser} />
       <FinanceReceivablesWorkspace currentUser={currentUser} />
       <FinanceIntegrityWorkspace currentUser={currentUser} />
+      <FinanceBillingRunWorkspace currentUser={currentUser} />
       <RefundWorkspace currentUser={currentUser} />
       <PayrollReadinessWorkspace currentUser={currentUser} />
       <StationeryOperationsWorkspace currentUser={currentUser} />
