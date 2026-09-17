@@ -15,6 +15,7 @@ import {
   reviewApplication,
 } from './api/client';
 import { FinanceWorkspace } from './FinanceWorkspace';
+import { FinanceReceiptsWorkspace } from './FinanceReceiptsWorkspace';
 import { GuardianWorkspace } from './GuardianWorkspace';
 import { StaffWorkspace } from './StaffWorkspace';
 
@@ -81,6 +82,7 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
       </header>
 
       <FinanceWorkspace currentUser={currentUser} />
+      <FinanceReceiptsWorkspace currentUser={currentUser} />
       <StaffWorkspace currentUser={currentUser} />
 
       <section className="card">
