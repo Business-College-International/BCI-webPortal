@@ -12,6 +12,63 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let refreshInFlight: Promise<void> | null = null;
+
+async function refreshSession(): Promise<void> {
+  const existing = refreshInFlight;
+  if (existing) {
+    await existing;
+    return;
+  }
+
+  const refreshToken = localStorage.getItem('bci_refresh_token');
+  if (!refreshToken) throw new Error('No BCI refresh token is available.');
+
+  const promise = (async () => {
+    const response = await api.post<AuthTokens>('/auth/refresh', { refreshToken });
+    localStorage.setItem('bci_access_token', response.data.accessToken);
+    localStorage.setItem('bci_refresh_token', response.data.refreshToken);
+  })();
+
+  refreshInFlight = promise;
+  try {
+    await promise;
+  } finally {
+    if (refreshInFlight === promise) refreshInFlight = null;
+  }
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (!axios.isAxiosError(error)) throw error;
+
+    const config = error.config as (typeof error.config & { _bciRetry?: boolean }) | undefined;
+    const isRefreshCall = config?.url?.includes('/auth/refresh') ?? false;
+    if (error.response?.status !== 401 || !config || config._bciRetry || isRefreshCall) {
+      throw error;
+    }
+
+    config._bciRetry = true;
+    try {
+      await refreshSession();
+    } catch (refreshError) {
+      logoutLocal();
+      throw refreshError;
+    }
+
+    const token = localStorage.getItem('bci_access_token');
+    if (!token) {
+      logoutLocal();
+      throw error;
+    }
+
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+    return api.request(config);
+  },
+);
+
 export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'ADMITTED' | 'REJECTED' | 'WITHDRAWN';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 
