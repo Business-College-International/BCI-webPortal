@@ -22,7 +22,7 @@ export function TeacherAssessmentWorkspace({ currentUser }: { currentUser: Curre
   const assignment = profile.data?.teaching.find((item) => item.id === assignmentId);
   const roster = useQuery({
     queryKey: ['assessment-roster', assignment?.class.id, assignment?.term.id, assignment?.subject.id],
-    queryFn: () => listAssessmentRoster(assignment!.class.id, assignment!.term.id),
+    queryFn: () => listAssessmentRoster(assignment!.class.id, assignment!.term.id, assignment!.subject.id),
     enabled: Boolean(assignment),
   });
 
