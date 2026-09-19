@@ -9,7 +9,7 @@ type Wallet = {
   currency: string;
   balance: string | null;
   balanceStatus: 'CALCULATED' | 'NO_WALLET' | 'LEDGER_POLICY_REQUIRED';
-  transactions: Array<{ id: string; type: string; amount: string; createdAt: string; note: string | null; processedBy: string | null }>;
+  transactions: Array<{ id: string; type: string; direction: string | null; amount: string; createdAt: string; note: string | null; processedBy: string | null }>;
 };
 
 async function listWalletWards(): Promise<Ward[]> {
@@ -55,9 +55,9 @@ export function GuardianWalletWorkspace({ currentUser }: { currentUser: CurrentU
           {wallet.data.balanceStatus === 'LEDGER_POLICY_REQUIRED' && <p role="alert">This wallet contains reversal entries that require office reconciliation before a reliable balance can be displayed.</p>}
           <div className="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Note</th></tr></thead><tbody>
             {wallet.data.transactions.length === 0 && <tr><td colSpan={4}>No wallet transactions.</td></tr>}
-            {wallet.data.transactions.map((transaction) => <tr key={transaction.id}><td>{new Date(transaction.createdAt).toLocaleString()}</td><td>{transaction.type}</td><td>{wallet.data.currency} {transaction.amount}</td><td>{transaction.note ?? '—'}</td></tr>)}
+            {wallet.data.transactions.map((transaction) => <tr key={transaction.id}><td>{new Date(transaction.createdAt).toLocaleString()}</td><td>{transaction.type}</td><td>{transaction.direction === 'DEBIT' ? '-' : transaction.direction === 'CREDIT' ? '+' : ''}{wallet.data.currency} {transaction.amount}</td><td>{transaction.note ?? '—'}</td></tr>)}
           </tbody></table></div>
-          <p className="muted">Wallet withdrawals are processed by authorized school office staff. Guardian accounts do not directly disburse cash.</p>
+          <p className="muted">Amounts follow the signed wallet ledger: credits increase the balance and debits decrease it. Wallet withdrawals are processed by authorized school office staff.</p>
         </>
       )}
     </section>
