@@ -1,72 +1,3 @@
-import axios from 'axios';
-
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1',
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('bci_access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-let refreshInFlight: Promise<void> | null = null;
-
-async function refreshSession(): Promise<void> {
-  const existing = refreshInFlight;
-  if (existing) {
-    await existing;
-    return;
-  }
-
-  const refreshToken = localStorage.getItem('bci_refresh_token');
-  if (!refreshToken) throw new Error('No BCI refresh token is available.');
-
-  const promise = (async () => {
-    const response = await api.post<AuthTokens>('/auth/refresh', { refreshToken });
-    localStorage.setItem('bci_access_token', response.data.accessToken);
-    localStorage.setItem('bci_refresh_token', response.data.refreshToken);
-  })();
-
-  refreshInFlight = promise;
-  try {
-    await promise;
-  } finally {
-    if (refreshInFlight === promise) refreshInFlight = null;
-  }
-}
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (!axios.isAxiosError(error)) throw error;
-
-    const config = error.config as (typeof error.config & { _bciRetry?: boolean }) | undefined;
-    const isRefreshCall = config?.url?.includes('/auth/refresh') ?? false;
-    if (error.response?.status !== 401 || !config || config._bciRetry || isRefreshCall) {
-      throw error;
-    }
-
-    config._bciRetry = true;
-    try {
-      await refreshSession();
-    } catch (refreshError) {
-      logoutLocal();
-      throw refreshError;
-    }
-
-    const token = localStorage.getItem('bci_access_token');
-    if (!token) {
-      logoutLocal();
-      throw error;
-    }
-
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-    return api.request(config);
-  },
 );
 
 export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'ADMITTED' | 'REJECTED' | 'WITHDRAWN';
@@ -99,6 +30,9 @@ export interface Expense { id: string; category: string; amount: string; currenc
 export interface StudentDirectoryItem { id: string; admissionNumber: string | null; firstName: string; lastName: string; dateOfBirth: string; status: string; passportPhotoUrl: string | null; primaryGuardian: { name: string; phone: string | null; email: string | null } | null; enrolment: { academicYear: string; term: string; class: string; level: string; programme: string; status: string } | null; }
 export interface StudentDetail { student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; dateOfBirth: string; sex: string | null; hometown: string | null; region: string | null; passportPhotoUrl: string | null; previousSchool: string | null; status: string; admittedAt: string | null }; guardians: Array<{ relationship: string; isPrimaryContact: boolean }>; enrolments: Array<{ id: string; status: string; enrolledAt: string; completedAt: string | null; academicYear: { id: string; name: string }; term: { id: string; code: string; name: string }; class: { id: string; name: string; level: string; programme: string } }>; electives?: Array<{ id: string; termId: string; subject: { id: string; code: string; name: string; level: string; programme: string } }>; documents: Array<{ id: string; type: string; fileUrl: string; createdAt: string }>; }
 export interface GuardianDirectoryItem { personId: string; name: string; phone: string | null; email: string | null; wardCount: number; }
+export interface GradingBand { id?: string; code: string; lowerInclusive: string | number; upperExclusive: string | number | null; pass: boolean; descriptor: string; points: string | number | null; order: number; }
+export interface GradingPolicy { id: string; version: string; name: string; academicYearId: string; level: string; programme: string | null; status: 'DRAFT' | 'ACTIVE' | 'RETIRED'; createdAt: string; publishedAt: string | null; publishedBy: string | null; bands: GradingBand[]; }
+
 export interface ClassRoster { class: SchoolClass; term: AcademicTerm; count: number; students: Array<{ enrolmentId: string; student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; dateOfBirth: string; sex: string | null; passportPhotoUrl: string | null; status: string }; primaryGuardian: { name: string; phone: string | null } | null }>; }
 
 export async function login(identifier: string, password: string): Promise<AuthTokens> { const response = await api.post<AuthTokens>('/auth/login', { identifier, password }); localStorage.setItem('bci_access_token', response.data.accessToken); localStorage.setItem('bci_refresh_token', response.data.refreshToken); return response.data; }
@@ -108,6 +42,12 @@ export async function getMyStaffProfile(): Promise<StaffProfile> { const respons
 export async function listNotifications(status?: string): Promise<NotificationDelivery[]> { const response = await api.get<NotificationDelivery[]>('/notifications/me', { params: status ? { status } : undefined }); return response.data; }
 export async function markNotificationRead(id: string): Promise<unknown> { const response = await api.patch(`/notifications/${encodeURIComponent(id)}/read`); return response.data; }
 export async function markAllNotificationsRead(): Promise<{ updatedCount: number }> { const response = await api.post<{ updatedCount: number }>('/notifications/me/read-all'); return response.data; }
+export async function listGradingPolicies(params?: { academicYearId?: string; level?: string; programme?: string }): Promise<GradingPolicy[]> { const response = await api.get<GradingPolicy[]>('/grading-policies', { params }); return response.data; }
+export async function createGradingPolicy(input: { academicYearId: string; name: string; level: string; programme?: string | null; bands: Array<{ code: string; lowerInclusive: string; upperExclusive?: string; pass: boolean; descriptor: string; points?: string; order: number }> }): Promise<GradingPolicy> { const response = await api.post<GradingPolicy>('/grading-policies', input); return response.data; }
+export async function updateGradingPolicy(id: string, input: { name?: string; bands?: Array<{ code: string; lowerInclusive: string; upperExclusive?: string; pass: boolean; descriptor: string; points?: string; order: number }> }): Promise<GradingPolicy> { const response = await api.patch<GradingPolicy>('/grading-policies/' + encodeURIComponent(id), input); return response.data; }
+export async function publishGradingPolicy(id: string): Promise<GradingPolicy> { const response = await api.post<GradingPolicy>('/grading-policies/' + encodeURIComponent(id) + '/publish'); return response.data; }
+export async function retireGradingPolicy(id: string): Promise<GradingPolicy> { const response = await api.post<GradingPolicy>('/grading-policies/' + encodeURIComponent(id) + '/retire'); return response.data; }
+
 export async function listStudentsDirectory(params?: { status?: string; level?: string; programme?: string; termId?: string; classId?: string; q?: string }): Promise<StudentDirectoryItem[]> { const response = await api.get<StudentDirectoryItem[]>('/students/directory', { params }); return response.data; }
 export async function getStudent(id: string): Promise<StudentDetail> { const response = await api.get<StudentDetail>(`/students/${encodeURIComponent(id)}`); return response.data; }
 export async function listGuardianDirectory(q?: string): Promise<GuardianDirectoryItem[]> { const response = await api.get<GuardianDirectoryItem[]>('/guardians/directory', { params: q ? { q } : undefined }); return response.data; }
