@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, CurrentUser, getCurrentReportCardPublication, listReportCardPublicationHistory, prepareReportCardPublication, publishReportCardPublication, voidReportCardPublication, ReportCardPublication } from './api/client';
+import { api, CurrentUser, approveReportCardCorrection, getCurrentReportCardPublication, listReportCardCorrections, listReportCardPublicationHistory, prepareReportCardPublication, publishReportCardPublication, ReportCardCorrectionRequest, ReportCardPublication, rejectReportCardCorrection, requestReportCardCorrection, voidReportCardPublication } from './api/client';
 
 type ReportDraft = {
   student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; status: string };
@@ -23,9 +23,14 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
   const [error, setError] = useState('');
   const [publication, setPublication] = useState<ReportCardPublicationView | null>(null);
   const [publicationHistory, setPublicationHistory] = useState<ReportCardPublication[]>([]);
+  const [corrections, setCorrections] = useState<ReportCardCorrectionRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [correctionsLoading, setCorrectionsLoading] = useState(false);
   const [publicationBusy, setPublicationBusy] = useState(false);
   const [voidReason, setVoidReason] = useState('');
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
+  const [correctionBusyId, setCorrectionBusyId] = useState<string | null>(null);
 
   if (!canRead && !canManageStudents) return null;
 
@@ -66,6 +71,57 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
     }
   }
 
+  async function loadCorrections(nextStudentId = studentId, nextTermId = termId) {
+    if (!nextStudentId || !nextTermId) return;
+    setCorrectionsLoading(true);
+    try {
+      setCorrections(await listReportCardCorrections(nextStudentId, nextTermId));
+    } catch (requestError) {
+      setCorrections([]);
+      setError(requestError instanceof Error ? requestError.message : 'Correction requests could not be loaded.');
+    } finally {
+      setCorrectionsLoading(false);
+    }
+  }
+
+  async function handleRequestCorrection() {
+    if (!correctionReason.trim()) {
+      setError('A correction reason is required.');
+      return;
+    }
+    setCorrectionBusyId('request');
+    setError('');
+    try {
+      await requestReportCardCorrection(studentId, termId, correctionReason.trim());
+      setCorrectionReason('');
+      await loadCorrections();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'The correction request could not be submitted.');
+    } finally {
+      setCorrectionBusyId(null);
+    }
+  }
+
+  async function handleCorrectionDecision(request: ReportCardCorrectionRequest, decision: 'approve' | 'reject') {
+    const note = decisionNotes[request.id]?.trim() ?? '';
+    if (!note) {
+      setError('A decision note is required.');
+      return;
+    }
+    setCorrectionBusyId(request.id);
+    setError('');
+    try {
+      if (decision === 'approve') await approveReportCardCorrection(request.id, note);
+      else await rejectReportCardCorrection(request.id, note);
+      setDecisionNotes((current) => ({ ...current, [request.id]: '' }));
+      await Promise.all([loadPublication(), loadPublicationHistory(), loadCorrections()]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'The correction decision could not be saved.');
+    } finally {
+      setCorrectionBusyId(null);
+    }
+  }
+
   async function loadReport() {
     if (!studentId || !termId) {
       setError('Enter both a student ID and term ID.');
@@ -78,6 +134,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
       setReport(response.data);
       await loadPublication();
       await loadPublicationHistory();
+      await loadCorrections();
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'The academic report could not be loaded.';
       setError(message);
@@ -89,7 +146,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
 
   async function handlePrepare() {
     setPublicationBusy(true); setError('');
-    try { const created = await prepareReportCardPublication(studentId, termId); setPublication({ id: created.id, publicationVersion: created.publicationVersion, status: created.status, snapshotHash: created.snapshotHash, gradingPolicyVersionId: created.gradingPolicyVersionId, publishedAt: created.publishedAt, publishedBy: created.publishedBy, voidedAt: created.voidedAt, voidedBy: created.voidedBy, voidReason: created.voidReason, createdAt: created.createdAt }); await loadPublicationHistory(); }
+    try { const created = await prepareReportCardPublication(studentId, termId); setPublication({ id: created.id, publicationVersion: created.publicationVersion, status: created.status, snapshotHash: created.snapshotHash, gradingPolicyVersionId: created.gradingPolicyVersionId, publishedAt: created.publishedAt, publishedBy: created.publishedBy, voidedAt: created.voidedAt, voidedBy: created.voidedBy, voidReason: created.voidReason, createdAt: created.createdAt }); await loadPublicationHistory(); await loadCorrections(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report snapshot could not be prepared.'); }
     finally { setPublicationBusy(false); }
   }
@@ -195,6 +252,63 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
                   </div>
                 )}
               </div>
+              {(currentUser.permissions.includes('reports.correction.request') || currentUser.permissions.includes('reports.correction.review')) && (
+                <div className="subsection">
+                  <div className="section-heading">
+                    <div>
+                      <h4>Correction requests</h4>
+                      <p className="muted">Corrections never overwrite a published snapshot. Approved corrections create the next immutable publication version.</p>
+                    </div>
+                    <button type="button" onClick={() => loadCorrections()} disabled={correctionsLoading}>
+                      {correctionsLoading ? 'Refreshing…' : 'Refresh requests'}
+                    </button>
+                  </div>
+                  {currentUser.permissions.includes('reports.correction.request') && publication?.status === 'PUBLISHED' && !corrections.some((item) => item.decision === 'PENDING') && (
+                    <div className="form-grid">
+                      <label>
+                        Correction reason
+                        <input value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder="Explain what needs correction" disabled={correctionBusyId === 'request'} />
+                      </label>
+                      <button type="button" onClick={handleRequestCorrection} disabled={correctionBusyId === 'request' || !correctionReason.trim()}>
+                        {correctionBusyId === 'request' ? 'Submitting…' : 'Request correction'}
+                      </button>
+                    </div>
+                  )}
+                  {corrections.length === 0 && !correctionsLoading && <p className="muted">No correction requests have been recorded for this student and term.</p>}
+                  {corrections.length > 0 && (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>Requested</th><th>Status</th><th>Reason</th><th>Decision note</th><th>Action</th></tr></thead>
+                        <tbody>
+                          {corrections.map((request) => (
+                            <tr key={request.id}>
+                              <td>{new Date(request.requestedAt).toLocaleString()}</td>
+                              <td>{request.decision}</td>
+                              <td>{request.reason}</td>
+                              <td>
+                                {request.decisionNote ?? '—'}
+                                {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' && (
+                                  <textarea value={decisionNotes[request.id] ?? ''} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Decision note" disabled={correctionBusyId === request.id} />
+                                )}
+                              </td>
+                              <td>
+                                {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' ? (
+                                  <div>
+                                    <button type="button" onClick={() => handleCorrectionDecision(request, 'approve')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Approve & republish</button>
+                                    <button className="danger" type="button" onClick={() => handleCorrectionDecision(request, 'reject')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Reject</button>
+                                  </div>
+                                ) : request.approvedPublicationId ? (
+                                  <span>New publication: {request.approvedPublicationId}</span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
