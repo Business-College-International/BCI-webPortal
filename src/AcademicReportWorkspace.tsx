@@ -252,7 +252,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
                   </div>
                 )}
               </div>
-              {(currentUser.permissions.includes('reports.correction.request') || currentUser.permissions.includes('reports.correction.review')) && (
+
                 <div className="subsection">
                   <div className="section-heading">
                     <div>
@@ -310,6 +310,8 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
                 </div>
               )}
             </div>
+
+              {(currentUser.permissions.includes('reports.correction.request') || currentUser.permissions.includes('reports.correction.review')) && (
           )}
         </div>
       )}
