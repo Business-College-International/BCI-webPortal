@@ -73,6 +73,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
 
   async function loadCorrections(nextStudentId = studentId, nextTermId = termId) {
     if (!nextStudentId || !nextTermId) return;
+    if (!currentUser.permissions.includes('reports.correction.request') && !currentUser.permissions.includes('reports.correction.review')) return;
     setCorrectionsLoading(true);
     try {
       setCorrections(await listReportCardCorrections(nextStudentId, nextTermId));
@@ -252,66 +253,64 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
                   </div>
                 )}
               </div>
-
-                <div className="subsection">
-                  <div className="section-heading">
-                    <div>
-                      <h4>Correction requests</h4>
-                      <p className="muted">Corrections never overwrite a published snapshot. Approved corrections create the next immutable publication version.</p>
-                    </div>
-                    <button type="button" onClick={() => loadCorrections()} disabled={correctionsLoading}>
-                      {correctionsLoading ? 'Refreshing…' : 'Refresh requests'}
-                    </button>
-                  </div>
-                  {currentUser.permissions.includes('reports.correction.request') && publication?.status === 'PUBLISHED' && !corrections.some((item) => item.decision === 'PENDING') && (
-                    <div className="form-grid">
-                      <label>
-                        Correction reason
-                        <input value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder="Explain what needs correction" disabled={correctionBusyId === 'request'} />
-                      </label>
-                      <button type="button" onClick={handleRequestCorrection} disabled={correctionBusyId === 'request' || !correctionReason.trim()}>
-                        {correctionBusyId === 'request' ? 'Submitting…' : 'Request correction'}
-                      </button>
-                    </div>
-                  )}
-                  {corrections.length === 0 && !correctionsLoading && <p className="muted">No correction requests have been recorded for this student and term.</p>}
-                  {corrections.length > 0 && (
-                    <div className="table-wrap">
-                      <table>
-                        <thead><tr><th>Requested</th><th>Status</th><th>Reason</th><th>Decision note</th><th>Action</th></tr></thead>
-                        <tbody>
-                          {corrections.map((request) => (
-                            <tr key={request.id}>
-                              <td>{new Date(request.requestedAt).toLocaleString()}</td>
-                              <td>{request.decision}</td>
-                              <td>{request.reason}</td>
-                              <td>
-                                {request.decisionNote ?? '—'}
-                                {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' && (
-                                  <textarea value={decisionNotes[request.id] ?? ''} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Decision note" disabled={correctionBusyId === request.id} />
-                                )}
-                              </td>
-                              <td>
-                                {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' ? (
-                                  <div>
-                                    <button type="button" onClick={() => handleCorrectionDecision(request, 'approve')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Approve & republish</button>
-                                    <button className="danger" type="button" onClick={() => handleCorrectionDecision(request, 'reject')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Reject</button>
-                                  </div>
-                                ) : request.approvedPublicationId ? (
-                                  <span>New publication: {request.approvedPublicationId}</span>
-                                ) : '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+            </div>
+          )}
+          {(currentUser.permissions.includes('reports.correction.request') || currentUser.permissions.includes('reports.correction.review')) && (
+            <div className="card nested-card">
+              <div className="section-heading">
+                <div>
+                  <h4>Correction requests</h4>
+                  <p className="muted">Corrections never overwrite a published snapshot. Approved corrections create the next immutable publication version.</p>
+                </div>
+                <button type="button" onClick={() => loadCorrections()} disabled={correctionsLoading}>
+                  {correctionsLoading ? 'Refreshing…' : 'Refresh requests'}
+                </button>
+              </div>
+              {currentUser.permissions.includes('reports.correction.request') && publication?.status === 'PUBLISHED' && !corrections.some((item) => item.decision === 'PENDING') && (
+                <div className="form-grid">
+                  <label>
+                    Correction reason
+                    <input value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder="Explain what needs correction" disabled={correctionBusyId === 'request'} />
+                  </label>
+                  <button type="button" onClick={handleRequestCorrection} disabled={correctionBusyId === 'request' || !correctionReason.trim()}>
+                    {correctionBusyId === 'request' ? 'Submitting…' : 'Request correction'}
+                  </button>
+                </div>
+              )}
+              {corrections.length === 0 && !correctionsLoading && <p className="muted">No correction requests have been recorded for this student and term.</p>}
+              {corrections.length > 0 && (
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Requested</th><th>Status</th><th>Reason</th><th>Decision note</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {corrections.map((request) => (
+                        <tr key={request.id}>
+                          <td>{new Date(request.requestedAt).toLocaleString()}</td>
+                          <td>{request.decision}</td>
+                          <td>{request.reason}</td>
+                          <td>
+                            {request.decisionNote ?? '—'}
+                            {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' && (
+                              <textarea value={decisionNotes[request.id] ?? ''} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Decision note" disabled={correctionBusyId === request.id} />
+                            )}
+                          </td>
+                          <td>
+                            {currentUser.permissions.includes('reports.correction.review') && request.decision === 'PENDING' ? (
+                              <div>
+                                <button type="button" onClick={() => handleCorrectionDecision(request, 'approve')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Approve & republish</button>
+                                <button className="danger" type="button" onClick={() => handleCorrectionDecision(request, 'reject')} disabled={correctionBusyId === request.id || !(decisionNotes[request.id] ?? '').trim()}>Reject</button>
+                              </div>
+                            ) : request.approvedPublicationId ? (
+                              <span>New publication: {request.approvedPublicationId}</span>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
-
-              {(currentUser.permissions.includes('reports.correction.request') || currentUser.permissions.includes('reports.correction.review')) && (
           )}
         </div>
       )}
