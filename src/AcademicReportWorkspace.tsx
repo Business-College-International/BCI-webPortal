@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, CurrentUser, getCurrentReportCardPublication, prepareReportCardPublication, publishReportCardPublication, voidReportCardPublication } from './api/client';
+import { api, CurrentUser, getCurrentReportCardPublication, listReportCardPublicationHistory, prepareReportCardPublication, publishReportCardPublication, voidReportCardPublication, ReportCardPublication } from './api/client';
 
 type ReportDraft = {
   student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; status: string };
@@ -22,6 +22,8 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [publication, setPublication] = useState<ReportCardPublicationView | null>(null);
+  const [publicationHistory, setPublicationHistory] = useState<ReportCardPublication[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [publicationBusy, setPublicationBusy] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
@@ -51,6 +53,19 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
     }
   }
 
+  async function loadPublicationHistory(nextStudentId = studentId, nextTermId = termId) {
+    if (!nextStudentId || !nextTermId || !currentUser.permissions.includes('reports.publish')) return;
+    setHistoryLoading(true);
+    try {
+      setPublicationHistory(await listReportCardPublicationHistory(nextStudentId, nextTermId));
+    } catch (requestError) {
+      setPublicationHistory([]);
+      setError(requestError instanceof Error ? requestError.message : 'Publication history could not be loaded.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   async function loadReport() {
     if (!studentId || !termId) {
       setError('Enter both a student ID and term ID.');
@@ -62,6 +77,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
       const response = await api.get<ReportDraft>(`/academic-reports/students/${encodeURIComponent(studentId)}/terms/${encodeURIComponent(termId)}`);
       setReport(response.data);
       await loadPublication();
+      await loadPublicationHistory();
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'The academic report could not be loaded.';
       setError(message);
@@ -73,7 +89,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
 
   async function handlePrepare() {
     setPublicationBusy(true); setError('');
-    try { const created = await prepareReportCardPublication(studentId, termId); setPublication({ id: created.id, publicationVersion: created.publicationVersion, status: created.status, snapshotHash: created.snapshotHash, gradingPolicyVersionId: created.gradingPolicyVersionId, publishedAt: created.publishedAt, publishedBy: created.publishedBy, voidedAt: created.voidedAt, voidedBy: created.voidedBy, voidReason: created.voidReason, createdAt: created.createdAt }); }
+    try { const created = await prepareReportCardPublication(studentId, termId); setPublication({ id: created.id, publicationVersion: created.publicationVersion, status: created.status, snapshotHash: created.snapshotHash, gradingPolicyVersionId: created.gradingPolicyVersionId, publishedAt: created.publishedAt, publishedBy: created.publishedBy, voidedAt: created.voidedAt, voidedBy: created.voidedBy, voidReason: created.voidReason, createdAt: created.createdAt }); await loadPublicationHistory(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report snapshot could not be prepared.'); }
     finally { setPublicationBusy(false); }
   }
@@ -81,7 +97,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
   async function handlePublish() {
     if (!publication) return;
     setPublicationBusy(true); setError('');
-    try { const updated = await publishReportCardPublication(publication.id); setPublication({ ...publication, status: updated.status, publishedAt: updated.publishedAt, publishedBy: updated.publishedBy }); }
+    try { const updated = await publishReportCardPublication(publication.id); setPublication({ ...publication, status: updated.status, publishedAt: updated.publishedAt, publishedBy: updated.publishedBy }); await loadPublicationHistory(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report snapshot could not be published.'); }
     finally { setPublicationBusy(false); }
   }
@@ -89,7 +105,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
   async function handleVoid() {
     if (!publication || !voidReason.trim()) { setError('A reason is required to void a published report card.'); return; }
     setPublicationBusy(true); setError('');
-    try { const updated = await voidReportCardPublication(publication.id, voidReason.trim()); setPublication({ ...publication, status: updated.status, voidedAt: updated.voidedAt, voidedBy: updated.voidedBy, voidReason: updated.voidReason }); setVoidReason(''); }
+    try { const updated = await voidReportCardPublication(publication.id, voidReason.trim()); setPublication({ ...publication, status: updated.status, voidedAt: updated.voidedAt, voidedBy: updated.voidedBy, voidReason: updated.voidReason }); setVoidReason(''); await loadPublicationHistory(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report card could not be voided.'); }
     finally { setPublicationBusy(false); }
   }
@@ -147,6 +163,38 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
               {publication?.status === 'READY_FOR_PUBLICATION' && <button type="button" onClick={handlePublish} disabled={publicationBusy}>{publicationBusy ? 'Publishing…' : 'Publish report card'}</button>}
               {publication?.status === 'PUBLISHED' && <><label>Void reason<input value={voidReason} onChange={(event) => setVoidReason(event.target.value)} placeholder="Reason for voiding this published report" disabled={publicationBusy} /></label><button className="danger" type="button" onClick={handleVoid} disabled={publicationBusy || !voidReason.trim()}>Void published report</button></>}
               {publication && <p className="muted">Snapshot hash: {publication.snapshotHash}. Grading policy version: {publication.gradingPolicyVersionId ?? 'none'}.</p>}
+              <div className="subsection">
+                <div className="section-heading">
+                  <div>
+                    <h4>Publication history</h4>
+                    <p className="muted">Append-only publication versions. Voided snapshots remain visible and are never reused.</p>
+                  </div>
+                  <button type="button" onClick={() => loadPublicationHistory()} disabled={historyLoading}>
+                    {historyLoading ? 'Refreshing…' : 'Refresh history'}
+                  </button>
+                </div>
+                {historyLoading && publicationHistory.length === 0 && <p>Loading publication history…</p>}
+                {!historyLoading && publicationHistory.length === 0 && <p className="muted">No publication versions have been recorded for this student and term.</p>}
+                {publicationHistory.length > 0 && (
+                  <div className="table-wrap">
+                    <table>
+                      <thead><tr><th>Version</th><th>Status</th><th>Published</th><th>Voided</th><th>Policy version</th><th>Snapshot hash</th></tr></thead>
+                      <tbody>
+                        {publicationHistory.map((item) => (
+                          <tr key={item.id}>
+                            <td>{item.publicationVersion}</td>
+                            <td>{item.status}</td>
+                            <td>{item.publishedAt ? new Date(item.publishedAt).toLocaleString() : '—'}</td>
+                            <td>{item.voidedAt ? new Date(item.voidedAt).toLocaleString() : '—'}</td>
+                            <td>{item.gradingPolicyVersionId ?? '—'}</td>
+                            <td><code>{item.snapshotHash}</code></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
