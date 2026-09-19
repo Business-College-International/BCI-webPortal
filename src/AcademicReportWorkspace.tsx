@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, CurrentUser } from './api/client';
+import { api, CurrentUser, getCurrentReportCardPublication, prepareReportCardPublication, publishReportCardPublication, voidReportCardPublication } from './api/client';
 
 type ReportDraft = {
   student: { id: string; admissionNumber: string | null; firstName: string; lastName: string; status: string };
@@ -21,8 +21,35 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
   const [report, setReport] = useState<ReportDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [publication, setPublication] = useState<ReportCardPublicationView | null>(null);
+  const [publicationBusy, setPublicationBusy] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
 
   if (!canRead && !canManageStudents) return null;
+
+  type ReportCardPublicationView = {
+    id: string;
+    publicationVersion: number;
+    status: string;
+    snapshotHash: string;
+    gradingPolicyVersionId: string | null;
+    publishedAt: string | null;
+    publishedBy: string | null;
+    voidedAt: string | null;
+    voidedBy: string | null;
+    voidReason: string | null;
+    createdAt: string;
+  };
+
+  async function loadPublication(nextStudentId = studentId, nextTermId = termId) {
+    if (!nextStudentId || !nextTermId) return;
+    try {
+      const current = await getCurrentReportCardPublication(nextStudentId, nextTermId);
+      setPublication({ id: current.id, publicationVersion: current.publicationVersion, status: current.status, snapshotHash: current.snapshotHash, gradingPolicyVersionId: current.gradingPolicyVersionId, publishedAt: current.publishedAt, publishedBy: current.publishedBy, voidedAt: current.voidedAt, voidedBy: current.voidedBy, voidReason: current.voidReason, createdAt: current.createdAt });
+    } catch {
+      setPublication(null);
+    }
+  }
 
   async function loadReport() {
     if (!studentId || !termId) {
@@ -34,6 +61,7 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
     try {
       const response = await api.get<ReportDraft>(`/academic-reports/students/${encodeURIComponent(studentId)}/terms/${encodeURIComponent(termId)}`);
       setReport(response.data);
+      await loadPublication();
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'The academic report could not be loaded.';
       setError(message);
@@ -41,6 +69,29 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handlePrepare() {
+    setPublicationBusy(true); setError('');
+    try { const created = await prepareReportCardPublication(studentId, termId); setPublication({ id: created.id, publicationVersion: created.publicationVersion, status: created.status, snapshotHash: created.snapshotHash, gradingPolicyVersionId: created.gradingPolicyVersionId, publishedAt: created.publishedAt, publishedBy: created.publishedBy, voidedAt: created.voidedAt, voidedBy: created.voidedBy, voidReason: created.voidReason, createdAt: created.createdAt }); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report snapshot could not be prepared.'); }
+    finally { setPublicationBusy(false); }
+  }
+
+  async function handlePublish() {
+    if (!publication) return;
+    setPublicationBusy(true); setError('');
+    try { const updated = await publishReportCardPublication(publication.id); setPublication({ ...publication, status: updated.status, publishedAt: updated.publishedAt, publishedBy: updated.publishedBy }); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report snapshot could not be published.'); }
+    finally { setPublicationBusy(false); }
+  }
+
+  async function handleVoid() {
+    if (!publication || !voidReason.trim()) { setError('A reason is required to void a published report card.'); return; }
+    setPublicationBusy(true); setError('');
+    try { const updated = await voidReportCardPublication(publication.id, voidReason.trim()); setPublication({ ...publication, status: updated.status, voidedAt: updated.voidedAt, voidedBy: updated.voidedBy, voidReason: updated.voidReason }); setVoidReason(''); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'The report card could not be voided.'); }
+    finally { setPublicationBusy(false); }
   }
 
   return (
@@ -86,8 +137,18 @@ export function AcademicReportWorkspace({ currentUser }: { currentUser: CurrentU
           <div className="table-wrap"><table><thead><tr><th>Subject</th><th>Assessment</th><th>Score</th><th>Percent</th><th>Weight</th></tr></thead><tbody>{report.assessments.map((assessment) => <tr key={assessment.id}><td>{assessment.assessment.subject.code}</td><td>{assessment.assessment.title}</td><td>{assessment.score} / {assessment.maxScore}</td><td>{assessment.percentage}%</td><td>{assessment.weight == null ? '—' : `${assessment.weight}%`}</td></tr>)}</tbody></table></div>
 
           <h3>Grading and publication</h3>
-          <p>{report.grading.assigned ? 'A grading policy has been assigned.' : report.grading.reason}</p>
-          <p className="muted">Publication state: {report.publication.state}. Persisted snapshot: {report.publication.immutableSnapshotId ?? 'none'}.</p>
+          <p>{report.grading.assigned ? `Grade ${report.grading.gradeCode ?? 'assigned'} · ${report.grading.policyVersion ?? 'policy version unavailable'}.` : report.grading.reason}</p>
+          <p className="muted">Live report publication state: {report.publication.state}. Persisted snapshot: {report.publication.immutableSnapshotId ?? 'none'}.</p>
+          {currentUser.permissions.includes('reports.publish') && (
+            <div className="card nested-card">
+              <h4>Official report-card publication</h4>
+              {publication && <p>Version {publication.publicationVersion} · {publication.status}{publication.publishedAt ? ` · published ${new Date(publication.publishedAt).toLocaleString()}` : ''}</p>}
+              {!publication && <button type="button" onClick={handlePrepare} disabled={publicationBusy}>Prepare immutable snapshot</button>}
+              {publication?.status === 'READY_FOR_PUBLICATION' && <button type="button" onClick={handlePublish} disabled={publicationBusy}>{publicationBusy ? 'Publishing…' : 'Publish report card'}</button>}
+              {publication?.status === 'PUBLISHED' && <><label>Void reason<input value={voidReason} onChange={(event) => setVoidReason(event.target.value)} placeholder="Reason for voiding this published report" disabled={publicationBusy} /></label><button className="danger" type="button" onClick={handleVoid} disabled={publicationBusy || !voidReason.trim()}>Void published report</button></>}
+              {publication && <p className="muted">Snapshot hash: {publication.snapshotHash}. Grading policy version: {publication.gradingPolicyVersionId ?? 'none'}.</p>}
+            </div>
+          )}
         </div>
       )}
     </section>

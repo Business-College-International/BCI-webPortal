@@ -17,6 +17,7 @@ import {
 import { FinanceWorkspace } from './FinanceWorkspace';
 import { FinanceReceiptsWorkspace } from './FinanceReceiptsWorkspace';
 import { GradingPolicyWorkspace } from './GradingPolicyWorkspace';
+import { AcademicReportWorkspace } from './AcademicReportWorkspace';
 import { GuardianWorkspace } from './GuardianWorkspace';
 import { StaffWorkspace } from './StaffWorkspace';
 
@@ -85,6 +86,7 @@ function Admissions({ currentUser, onLogout }: { currentUser: CurrentUser; onLog
       <FinanceWorkspace currentUser={currentUser} />
       <FinanceReceiptsWorkspace currentUser={currentUser} />
       <GradingPolicyWorkspace currentUser={currentUser} />
+      <AcademicReportWorkspace currentUser={currentUser} />
       <StaffWorkspace currentUser={currentUser} />
 
       <section className="card">
